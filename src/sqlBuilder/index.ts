@@ -1,0 +1,1 @@
+export { SQLBuilder as default } from '@dto/sql-builder-class';
