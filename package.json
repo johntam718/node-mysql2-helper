@@ -1,25 +1,27 @@
 {
   "name": "node-mysql-helper",
-  "packageManager": "yarn@4.4.0",
+  "version": "1.0.0",
+  "description": "A simple MySQL helper for Node.js",
+  "main": "dist/index.js",
   "scripts": {
     "main": "dist/index.js",
     "start": "tsx src/index.ts",
     "dev": "tsx watch test/index.ts",
-    "build": "tsc --project tsconfig.build.json && cp jsconfig.json dist/jsconfig.json"
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp jsconfig.json dist/jsconfig.json"
   },
   "dependencies": {
     "chalk": "^5.3.0",
     "loglevel": "^1.9.1",
-    "mysql2": "^3.11.0",
-    "zod": "^3.23.8"
+    "mysql2": "^3.11.0"
   },
   "devDependencies": {
     "@types/node": "^22.4.1",
-    "tsx": "^4.17.0",
+    "tsx": "^3.14.0",
     "typescript": "^5.5.4"
   },
   "files": [
     "dist",
     "jsconfig.json"
-  ]
+  ],
+  "packageManager": "yarn@3.2.0"
 }
