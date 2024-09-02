@@ -9,6 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "allowJs": true,
     "paths": {
       "@src/*": [
         "src/*"

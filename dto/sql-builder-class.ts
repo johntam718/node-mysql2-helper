@@ -301,7 +301,8 @@ export class SQLBuilder implements
 
             // handle IS NULL and IS NOT NULL
           } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
-            whereClauses.push(`${sanitizedKey} ${operator.replaceAll('_', ' ')}`);
+            // whereClauses.push(`${sanitizedKey} ${operator.replaceAll('_', ' ')}`);
+            whereClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
           }
           else {
             throw new Error(`Unsupported operator: ${operator}`);
