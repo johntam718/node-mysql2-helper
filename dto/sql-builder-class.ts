@@ -170,7 +170,7 @@ export class SQLBuilder implements
 
   where(conditions: WhereCondition): WhereQueryBuilder {
     const { clause, params } = this.buildWhereClause(conditions);
-    this.queryParts.where.sql = clause;
+    this.queryParts.where.sql = clause ? `WHERE ${clause}` : '';
     this.queryParts.where.params = params;
     return this;
   }
@@ -271,51 +271,332 @@ export class SQLBuilder implements
     return this;
   }
 
-  private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
-    const whereClauses: string[] = [];
-    const params: any[] = [];
+  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
+  //   const whereClauses: string[] = [];
+  //   const params: any[] = [];
 
-    for (const key in conditions) {
-      const value = conditions[key]; // e.g. { name: { 'LIKE': 'John%' } }
-      const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, ''); // Filter out non-alphanumeric characters
+  //   for (const key in conditions) {
+  //     const value = conditions[key]; // e.g. { name: { 'LIKE': 'John%' } }
+  //     const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, ''); // Filter out non-alphanumeric characters
 
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        for (const operator in value) {
-          // handle IN condition
-          if (operator === 'IN' && Array.isArray(value[operator])) {
-            whereClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
-            params.push(...value[operator]);
+  //     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  //       for (const operator in value) {
+  //         // handle IN condition
+  //         if (operator === 'IN' && Array.isArray(value[operator])) {
+  //           whereClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+  //           params.push(...value[operator]);
 
-            // handle BETWEEN condition
-          } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-            whereClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
-            params.push(value[operator][0], value[operator][1]);
-          } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-            whereClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
-            params.push(value[operator][0], value[operator][1]);
+  //           // handle BETWEEN condition
+  //         } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //           whereClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+  //           params.push(value[operator][0], value[operator][1]);
+  //         } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //           whereClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+  //           params.push(value[operator][0], value[operator][1]);
 
-            // handle LIKE and other operators
-          } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
-            whereClauses.push(`${sanitizedKey} ${operator} ?`);
-            params.push((value as any)[operator]);
+  //           // handle LIKE and other operators
+  //         } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+  //           whereClauses.push(`${sanitizedKey} ${operator} ?`);
+  //           params.push((value as any)[operator]);
 
-            // handle IS NULL and IS NOT NULL
-          } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
-            // whereClauses.push(`${sanitizedKey} ${operator.replaceAll('_', ' ')}`);
-            whereClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
-          }
-          else {
-            throw new Error(`Unsupported operator: ${operator}`);
+  //           // handle IS NULL and IS NOT NULL
+  //         } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+  //           // whereClauses.push(`${sanitizedKey} ${operator.replaceAll('_', ' ')}`);
+  //           whereClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+  //         }
+  //         else {
+  //           throw new Error(`Unsupported operator: ${operator}`);
+  //         }
+  //       }
+  //     } else {
+  //       // Default to equality
+  //       whereClauses.push(`${sanitizedKey} = ?`);
+  //       params.push(value);
+  //     }
+  //   }
+
+  //   return { clause: whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '', params };
+  // }
+
+  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
+  //   const whereClauses: string[] = [];
+  //   const params: any[] = [];
+
+  //   const processConditions = (conditions: WhereCondition, parentOperator: 'AND' | 'OR' = 'AND') => {
+  //     const subClauses: string[] = [];
+  //     for (const key in conditions) {
+  //       const value = conditions[key];
+
+  //       if (key === 'AND' || key === 'OR') {
+  //         const nestedConditions = value as WhereCondition[];
+  //         const nestedClauses = nestedConditions.map(nestedCondition => this.buildWhereClause(nestedCondition));
+  //         const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+  //         subClauses.push(nestedClauseStrings.join(` ${key} `));
+  //         nestedClauses.forEach(nestedResult => params.push(...nestedResult.params));
+  //       } else {
+  //         const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+
+  //         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  //           for (const operator in value) {
+  //             if (operator === 'IN' && Array.isArray(value[operator])) {
+  //               subClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+  //               params.push(...value[operator]);
+  //             } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator} ?`);
+  //               params.push((value as any)[operator]);
+  //             } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+  //             } else {
+  //               throw new Error(`Unsupported operator: ${operator}`);
+  //             }
+  //           }
+  //         } else {
+  //           subClauses.push(`${sanitizedKey} = ?`);
+  //           params.push(value);
+  //         }
+  //       }
+  //     }
+  //     return { clause: subClauses.join(` ${parentOperator} `), params };
+  //   };
+
+  //   const result = processConditions(conditions);
+  //   whereClauses.push(result.clause);
+  //   params.push(...result.params);
+
+  //   return {
+  //     // clause: whereClauses.join(' AND '),
+  //     clause: whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '',
+  //     params
+  //   };
+  // }
+
+  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
+  //   const whereClauses: string[] = [];
+  //   const params: any[] = [];
+
+  //   const processConditions = (conditions: WhereCondition, parentOperator: 'AND' | 'OR' = 'AND') => {
+  //     const subClauses: string[] = [];
+  //     for (const key in conditions) {
+  //       const value = conditions[key];
+
+  //       if (key === 'AND' || key === 'OR') {
+  //         const nestedConditions = value as WhereCondition[];
+  //         const nestedClauses = nestedConditions.map(nestedCondition => this.buildWhereClause(nestedCondition));
+  //         const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+  //         subClauses.push(nestedClauseStrings.join(` ${key} `));
+  //         nestedClauses.forEach(nestedResult => params.push(...nestedResult.params));
+  //       } else {
+  //         const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+
+  //         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  //           for (const operator in value) {
+  //             if (operator === 'IN' && Array.isArray(value[operator])) {
+  //               subClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+  //               params.push(...value[operator]);
+  //             } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator} ?`);
+  //               params.push(value[operator]);
+  //             } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+  //             } else {
+  //               throw new Error(`Unsupported operator: ${operator}`);
+  //             }
+  //           }
+  //         } else {
+  //           subClauses.push(`${sanitizedKey} = ?`);
+  //           params.push(value);
+  //         }
+  //       }
+  //     }
+  //     return { clause: subClauses.join(` ${parentOperator} `), params };
+  //   };
+
+  //   const result = processConditions(conditions);
+  //   whereClauses.push(result.clause);
+  //   params.push(...result.params);
+
+  //   return {
+  //     clause: whereClauses.join(' AND '),
+  //     params
+  //   };
+  // }
+
+  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
+  //   const whereClauses: string[] = [];
+  //   const params: any[] = [];
+
+  //   const processConditions = (conditions: WhereCondition, parentOperator: 'AND' | 'OR' = 'AND') => {
+  //     const subClauses: string[] = [];
+  //     for (const key in conditions) {
+  //       const value = conditions[key];
+
+  //       if (key === 'AND' || key === 'OR') {
+  //         const nestedConditions = value as WhereCondition[];
+  //         const nestedClauses = nestedConditions.map(nestedCondition => this.buildWhereClause(nestedCondition));
+  //         const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+  //         subClauses.push(nestedClauseStrings.join(` ${key} `));
+  //         nestedClauses.forEach(nestedResult => params.push(...nestedResult.params));
+  //       } else {
+  //         const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+
+  //         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  //           for (const operator in value) {
+  //             if (operator === 'IN' && Array.isArray(value[operator])) {
+  //               subClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+  //               params.push(...value[operator]);
+  //             } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               subClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+  //               params.push(value[operator][0], value[operator][1]);
+  //             } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator} ?`);
+  //               params.push(value[operator]);
+  //             } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+  //               subClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+  //             } else {
+  //               throw new Error(`Unsupported operator: ${operator}`);
+  //             }
+  //           }
+  //         } else {
+  //           subClauses.push(`${sanitizedKey} = ?`);
+  //           params.push(value);
+  //         }
+  //       }
+  //     }
+  //     return { clause: subClauses.join(` ${parentOperator} `), params };
+  //   };
+
+  //   const result = processConditions(conditions);
+  //   whereClauses.push(result.clause);
+  //   params.push(...result.params);
+
+  //   return {
+  //     clause: whereClauses.join(' AND '),
+  //     params
+  //   };
+  // }
+  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
+  //   const whereClauses: string[] = [];
+  //   const params: any[] = [];
+
+  //   const processConditions = (conditions: WhereCondition): { clause: string, params: any[] } => {
+  //     const clauses: string[] = [];
+  //     const localParams: any[] = [];
+
+  //     for (const key in conditions) {
+  //       const value = conditions[key];
+
+  //       if (key === 'AND' || key === 'OR') {
+  //         const nestedConditions = value as WhereCondition[];
+  //         const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition));
+  //         const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+  //         clauses.push(nestedClauseStrings.join(` ${key} `));
+  //         nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
+  //       } else {
+  //         const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+
+  //         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  //           for (const operator in value) {
+  //             if (operator === 'IN' && Array.isArray(value[operator])) {
+  //               clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+  //               localParams.push(...value[operator]);
+  //             } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+  //               localParams.push(value[operator][0], value[operator][1]);
+  //             } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+  //               clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+  //               localParams.push(value[operator][0], value[operator][1]);
+  //             } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+  //               clauses.push(`${sanitizedKey} ${operator} ?`);
+  //               localParams.push(value[operator]);
+  //             } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+  //               clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+  //             } else {
+  //               throw new Error(`Unsupported operator: ${operator}`);
+  //             }
+  //           }
+  //         } else {
+  //           clauses.push(`${sanitizedKey} = ?`);
+  //           localParams.push(value);
+  //         }
+  //       }
+  //     }
+
+  //     return { clause: clauses.join(' AND '), params: localParams };
+  //   };
+
+  //   const result = processConditions(conditions);
+  //   whereClauses.push(result.clause);
+  //   params.push(...result.params);
+
+  //   return {
+  //     clause: whereClauses.join(' AND '),
+  //     params
+  //   };
+  // }
+
+  private buildWhereClause(conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } {
+    const processConditions = (conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
+      const clauses: string[] = [];
+      const localParams: any[] = [];
+
+      for (const key in conditions) {
+        const value = (conditions as any)[key];
+
+        if (key === 'AND' || key === 'OR') {
+          const nestedConditions = value as WhereCondition[];
+          const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
+          const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+          clauses.push(nestedClauseStrings.join(` ${key} `));
+          nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
+        } else {
+          const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            for (const operator in value) {
+              if (operator === 'IN' && Array.isArray(value[operator])) {
+                clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+                localParams.push(...value[operator]);
+              } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+                localParams.push(value[operator][0], value[operator][1]);
+              } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+                localParams.push(value[operator][0], value[operator][1]);
+              } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+                clauses.push(`${sanitizedKey} ${operator} ?`);
+                localParams.push(value[operator]);
+              } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+                clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+              } else {
+                throw new Error(`Unsupported operator: ${operator}`);
+              }
+            }
+          } else {
+            clauses.push(`${sanitizedKey} = ?`);
+            localParams.push(value);
           }
         }
-      } else {
-        // Default to equality
-        whereClauses.push(`${sanitizedKey} = ?`);
-        params.push(value);
       }
-    }
 
-    return { clause: whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '', params };
+      return { clause: clauses.join(` ${parentOperator} `), params: localParams };
+    };
+
+    return processConditions(conditions, parentOperator);
   }
 
   buildQuery(): {

@@ -135,7 +135,19 @@ type OperatorCondition = Prettify<EqualOperator &
   IsNotNullOperator
 >;
 
-export type WhereCondition = { [key: string]: OperatorCondition | string | number }
+// export type WhereCondition = { [key: string]: OperatorCondition | string | number }
+export type SimpleCondition = {
+  [key: string]: OperatorCondition | string | number;
+};
+
+type NonEmptyArray<T> = [T, ...T[]];
+
+export type NestedCondition = {
+  AND?: NonEmptyArray<WhereCondition>;
+  OR?: NonEmptyArray<WhereCondition>;
+};
+
+export type WhereCondition = Prettify<SimpleCondition | NestedCondition>;
 
 export type DatabaseManagementOptions = {
   verbose?: boolean;
