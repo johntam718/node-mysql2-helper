@@ -219,6 +219,10 @@ export class SQLBuilder implements
     this.queryParts.update.sql = `UPDATE ??`;
     this.queryParts.update.params = [table];
 
+    if (Object.keys(values || {}).length === 0) {
+      throw new Error('Please provide data to update');
+    }
+
     if (values) {
       this.set(values);
       return this as UpdateQueryBuilderWithoutSet;

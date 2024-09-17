@@ -22,7 +22,10 @@ export function createInsert(table: string, options?: InsertOptions) {
 // Helper function to create delete queries
 export function createDelete(table: string) {
   const SQLBuild = new SQLBuilder();
-  return (whereCondition?: WhereCondition) => SQLBuild.deleteFrom(table).where(whereCondition || {}).orderBy([{ field: 'id', direction: 'DESC' }]).limit(1);
+  return (whereCondition?: WhereCondition, orderByField?: OrderByField[]) => SQLBuild.deleteFrom(table)
+    .where(whereCondition || {})
+    .orderBy(orderByField || [])
+    // .limit(1);
 }
 
 // Helper function to create a WhereCondition
