@@ -34,8 +34,9 @@ export class SQLBuilder implements
   OffsetQueryBuilder,
   DeleteQueryBuilder {
   queryParts: SQL_CONSTRUCTORS;
+  private queryFn?: Function;
 
-  constructor() {
+  constructor(queryFn?: Function) {
     this.queryParts = {
       count: { sql: "", params: [] },
       select: { sql: "", params: [] },
@@ -51,6 +52,7 @@ export class SQLBuilder implements
       set: { sql: "", params: [] },
       delete: { sql: "", params: [] },
     };
+    this.queryFn = queryFn;
   }
 
   private extractTableAndAlias(table: string, alias?: string): [string, string | undefined] {
@@ -428,5 +430,11 @@ export class SQLBuilder implements
         };
       }
     };
+  }
+
+  executeQuery() {
+    const [sql, params] = this.buildQuery();
+    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in constructor');
+    return this.queryFn(sql, params);
   }
 }

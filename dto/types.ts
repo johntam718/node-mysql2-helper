@@ -2,7 +2,7 @@
  * Represents a type that prettifies another type by preserving its keys and values.
  * @template T - The type to be prettified.
  */
-type Prettify<T> = {
+export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & unknown;
 
@@ -30,6 +30,8 @@ export type OrderByField = { field: string, direction?: 'ASC' | 'DESC' };
 export type SetValues = ObjectValues;
 export type InsertValues = ObjectValues;
 
+export type ColumnData<T extends string> = Partial<Record<T, any>>;
+
 export type InsertOptions = {
   insertIgnore?: boolean;
   onDuplicateKeyUpdate?: ObjectValues;
@@ -43,21 +45,31 @@ export type UpdateOptions = {
   utimeField?: string;
 };
 
+export type LimitOffset = 
+  | { limit?: never; offset?: never }
+  | { limit: number; offset?: number };
+
 export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 
 // --------------------------------------------------QUERY BUILDER--------------------------------------------------
 
-export type QueryResult = { sql: string; params: any[];[Symbol.iterator](): Iterator<any> };
+export type BuildQueryResult = { sql: string; params: any[];[Symbol.iterator](): Iterator<any> };
+export type QueryAction = {
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
+}
 
 export type SelectQueryBuilder = {
   from(table: string, alias?: string): FromQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 
 export interface WhereQueryBuilder {
   orderBy(fields: OrderByField[]): OrderByQueryBuilder;
   limit(limit: number): LimitQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 
 export type FromQueryBuilder = {
@@ -67,7 +79,8 @@ export type FromQueryBuilder = {
   // groupBy(fields: string[]): GroupByQueryBuilder;
   orderBy(fields: OrderByField[]): OrderByQueryBuilder;
   limit(limit: number): LimitQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 
 export interface JoinQueryBuilder extends FromQueryBuilder { }
@@ -75,35 +88,43 @@ export interface JoinQueryBuilder extends FromQueryBuilder { }
 
 export interface OrderByQueryBuilder {
   limit(limit: number): LimitQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface LimitQueryBuilder {
   offset(offset: number): OffsetQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface OffsetQueryBuilder {
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface UpdateQueryBuilder {
   set(values: SetValues): UpdateQueryBuilder;
   where(conditions: WhereCondition): WhereQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface UpdateQueryBuilderWithoutSet {
   where(conditions: WhereCondition): WhereQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface SetQueryBuilder {
   where(conditions: WhereCondition): WhereQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface InsertQueryBuilder {
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 export interface DeleteQueryBuilder {
   where(conditions: WhereCondition): WhereQueryBuilder
   limit(limit: number): LimitQueryBuilder;
-  buildQuery(): QueryResult;
+  buildQuery(): BuildQueryResult;
+  executeQuery<T>(): Promise<T>;
 }
 
 // --------------------------------------------------QUERY BUILDER END--------------------------------------------------

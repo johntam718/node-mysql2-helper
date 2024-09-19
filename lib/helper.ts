@@ -37,3 +37,8 @@ export function createWhereCondition(conditions: WhereCondition): WhereCondition
 export function createOrderBy(fields: OrderByField[]): OrderByField[] {
   return fields;
 }
+
+// Helper function to create columns
+export function createColumns<T extends string>(columns: T[]): T[] {
+  return columns;
+}
