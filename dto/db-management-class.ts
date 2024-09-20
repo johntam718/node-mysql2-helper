@@ -78,8 +78,8 @@ export class DatabaseManagement {
     return DatabaseManagement.instances;
   }
 
-  getNewSQLBuilder(): SQLBuilder {
-    return new SQLBuilder();
+  initNewSQLBuilder<T>(): SQLBuilder<T> {
+    return new SQLBuilder<T>(this.executeQuery.bind(this));
   }
 
   async createTransactionConnection() {
