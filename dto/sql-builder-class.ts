@@ -11,6 +11,7 @@ import {
   OffsetQueryBuilder,
   OrderByField,
   OrderByQueryBuilder,
+  QueryFunction,
   SelectFields,
   SelectQueryBuilder,
   SetQueryBuilder,
@@ -23,20 +24,25 @@ import {
   WhereQueryBuilder
 } from '@dto/types';
 
-export class SQLBuilder implements
-  SelectQueryBuilder,
-  FromQueryBuilder,
-  JoinQueryBuilder,
-  WhereQueryBuilder,
+export class SQLBuilder<QueryReturnType> implements
+  SelectQueryBuilder<QueryReturnType>,
+  FromQueryBuilder<QueryReturnType>,
+  JoinQueryBuilder<QueryReturnType>,
+  WhereQueryBuilder<QueryReturnType>,
   // GroupByQueryBuilder,
-  OrderByQueryBuilder,
-  LimitQueryBuilder,
-  OffsetQueryBuilder,
-  DeleteQueryBuilder {
+  OrderByQueryBuilder<QueryReturnType>,
+  LimitQueryBuilder<QueryReturnType>,
+  OffsetQueryBuilder<QueryReturnType>,
+  DeleteQueryBuilder<QueryReturnType>,
+  UpdateQueryBuilder<QueryReturnType>,
+  UpdateQueryBuilderWithoutSet<QueryReturnType>,
+  SetQueryBuilder<QueryReturnType>,
+  InsertQueryBuilder<QueryReturnType>
+  {
   queryParts: SQL_CONSTRUCTORS;
-  private queryFn?: Function;
+  private queryFn?: QueryFunction;
 
-  constructor(queryFn?: Function) {
+  constructor(queryFn?: QueryFunction) {
     this.queryParts = {
       count: { sql: "", params: [] },
       select: { sql: "", params: [] },
@@ -73,7 +79,7 @@ export class SQLBuilder implements
   }
 
   // For simple count query e.g. SELECT COUNT(*) FROM table
-  count(field: string = '*', alias?: string): SelectQueryBuilder {
+  count(field: string = '*', alias?: string): SelectQueryBuilder<QueryReturnType> {
     const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
     this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
     this.queryParts.select.params = field === '*' ? [] : [field];
@@ -83,7 +89,7 @@ export class SQLBuilder implements
     return this;
   }
 
-  select(fields: SelectFields): SelectQueryBuilder {
+  select(fields: SelectFields): SelectQueryBuilder<QueryReturnType> {
     const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
 
     if (typeof fields === 'string') {
@@ -132,7 +138,7 @@ export class SQLBuilder implements
     return this;
   }
 
-  from(table: string, alias?: string): FromQueryBuilder {
+  from(table: string, alias?: string): FromQueryBuilder<QueryReturnType> {
     const [tableName, extractedAlias] = this.extractTableAndAlias(table, alias);
 
     this.queryParts.from.sql = `FROM ??`;
@@ -145,10 +151,10 @@ export class SQLBuilder implements
   }
 
   // Overload signatures for the join method
-  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder;
-  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder;
+  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<QueryReturnType>;
+  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<QueryReturnType>;
   // Implementation of the join method
-  join(joinType: JoinType, table: string, aliasOrOnCondition: string, onCondition?: string): JoinQueryBuilder {
+  join(joinType: JoinType, table: string, aliasOrOnCondition: string, onCondition?: string): JoinQueryBuilder<QueryReturnType> {
     let alias: string | undefined;
     let actualOnCondition: string;
 
@@ -170,7 +176,7 @@ export class SQLBuilder implements
     return this;
   }
 
-  where(conditions: WhereCondition): WhereQueryBuilder {
+  where(conditions: WhereCondition): WhereQueryBuilder<QueryReturnType> {
     const { clause, params } = this.buildWhereClause(conditions);
     this.queryParts.where.sql = clause ? `WHERE ${clause}` : '';
     this.queryParts.where.params = params;
@@ -183,30 +189,30 @@ export class SQLBuilder implements
   //   return this;
   // }
 
-  orderBy(fields: OrderByField[]): OrderByQueryBuilder {
+  orderBy(fields: OrderByField[]): OrderByQueryBuilder<QueryReturnType> {
     if (fields.length === 0) return this;
     this.queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
     this.queryParts.orderBy.params = fields.map(({ field }) => field);
     return this;
   }
 
-  limit(limit: number): LimitQueryBuilder {
+  limit(limit: number): LimitQueryBuilder<QueryReturnType> {
     if (limit < 0) return this;
     this.queryParts.limit.sql = `LIMIT ?`;
     this.queryParts.limit.params = [limit];
     return this;
   }
 
-  offset(offset: number): OffsetQueryBuilder {
+  offset(offset: number): OffsetQueryBuilder<QueryReturnType> {
     if (offset < 0) return this;
     this.queryParts.offset.sql = `OFFSET ?`;
     this.queryParts.offset.params = [offset];
     return this;
   }
-  update(table: string): UpdateQueryBuilder;
-  update(table: string, values: SetValues): UpdateQueryBuilderWithoutSet;
-  update(table: string, values: SetValues, options?: UpdateOptions): UpdateQueryBuilderWithoutSet;
-  update(table: string, values?: SetValues, options?: UpdateOptions): UpdateQueryBuilder | UpdateQueryBuilderWithoutSet {
+  update(table: string): UpdateQueryBuilder<QueryReturnType>;
+  update(table: string, values: SetValues): UpdateQueryBuilderWithoutSet<QueryReturnType>;
+  update(table: string, values: SetValues, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<QueryReturnType>;
+  update(table: string, values?: SetValues, options?: UpdateOptions): UpdateQueryBuilder<QueryReturnType> | UpdateQueryBuilderWithoutSet<QueryReturnType> {
     const utimeField = options?.utimeField || 'utime';
     const { enableTimestamps = false } = options || {};
 
@@ -227,12 +233,12 @@ export class SQLBuilder implements
 
     if (values) {
       this.set(values);
-      return this as UpdateQueryBuilderWithoutSet;
+      return this as UpdateQueryBuilderWithoutSet<QueryReturnType>;
     }
     return this;
   }
 
-  set(values: SetValues): SetQueryBuilder {
+  set(values: SetValues): SetQueryBuilder<QueryReturnType> {
     const setClauses = Object.keys(values).map(key => `?? = ?`);
     const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
     this.queryParts.set.sql = `SET ${setClauses.join(', ')}`;
@@ -240,7 +246,7 @@ export class SQLBuilder implements
     return this;
   }
 
-  insert(table: string, values: InsertValues, options?: InsertOptions): InsertQueryBuilder {
+  insert(table: string, values: InsertValues, options?: InsertOptions): InsertQueryBuilder<QueryReturnType> {
     const ctimeField = options?.ctimeField || 'ctime';
     const utimeField = options?.utimeField || 'utime';
 
@@ -271,7 +277,7 @@ export class SQLBuilder implements
     return this;
   }
 
-  deleteFrom(table: string): DeleteQueryBuilder {
+  deleteFrom(table: string): DeleteQueryBuilder<QueryReturnType> {
     this.queryParts.delete.sql = `DELETE FROM ??`;
     this.queryParts.delete.params = [table];
     return this;
@@ -432,9 +438,9 @@ export class SQLBuilder implements
     };
   }
 
-  executeQuery() {
+  executeQuery<T = QueryReturnType>(): Promise<T> {
     const [sql, params] = this.buildQuery();
-    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in constructor');
-    return this.queryFn(sql, params);
+    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in the constructor');
+    return this.queryFn<T>(sql, params);
   }
 }
