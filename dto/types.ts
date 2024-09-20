@@ -1,5 +1,3 @@
-import { ResultSetHeader } from "mysql2";
-
 /**
  * Represents a type that prettifies another type by preserving its keys and values.
  * @template T - The type to be prettified.
@@ -26,8 +24,8 @@ export type SQL_CONSTRUCTORS = {
   limit: { sql: string, params: any[] },
 }
 
-type FieldDefinition = string | { [key: string]: string };
-export type SelectFields = '*' | (string & {}) | FieldDefinition[];
+export type FieldAlias = { [field: string]: string };
+export type SelectFields = '*' | (string & {}) | string[] | (string | FieldAlias)[];
 export type OrderByField = { field: string, direction?: 'ASC' | 'DESC' };
 export type SetValues = ObjectValues;
 export type InsertValues = ObjectValues;
@@ -46,6 +44,10 @@ export type UpdateOptions = {
   enableTimestamps?: boolean;
   utimeField?: string;
 };
+
+export type SoftDeleteOptions = Prettify<{
+  deleteField?: string;
+} & UpdateOptions>
 
 export type LimitOffset =
   | { limit?: never; offset?: never }
@@ -72,6 +74,7 @@ export type SelectQueryBuilder<T> = {
 export interface WhereQueryBuilder<T> {
   orderBy(fields: OrderByField[]): OrderByQueryBuilder<T>;
   limit(limit: number): LimitQueryBuilder<T>;
+  groupBy(fields: string | string[]): GroupByQueryBuilder<T>;
   buildQuery(): BuildQueryResult;
   executeQuery<K = T>(): Promise<K>;
 }
@@ -80,7 +83,7 @@ export type FromQueryBuilder<T> = {
   join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<T>;
   join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<T>;
   where(where: WhereCondition): WhereQueryBuilder<T>;
-  // groupBy(fields: string[]): GroupByQueryBuilder;
+  groupBy(fields: string | string[]): GroupByQueryBuilder<T>;
   orderBy(fields: OrderByField[]): OrderByQueryBuilder<T>;
   limit(limit: number): LimitQueryBuilder<T>;
   buildQuery(): BuildQueryResult;
@@ -95,6 +98,7 @@ export interface OrderByQueryBuilder<T> {
   buildQuery(): BuildQueryResult;
   executeQuery<K = T>(): Promise<K>;
 }
+export interface GroupByQueryBuilder<T> extends QueryAction<T> { }
 export interface LimitQueryBuilder<T> {
   offset(offset: number): OffsetQueryBuilder<T>;
   buildQuery(): BuildQueryResult;

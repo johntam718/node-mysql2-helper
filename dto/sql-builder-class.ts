@@ -1,10 +1,10 @@
 import {
   DeleteQueryBuilder,
   FromQueryBuilder,
+  GroupByQueryBuilder,
   InsertOptions,
   InsertQueryBuilder,
   InsertValues,
-  // GroupByQueryBuilder,
   JoinQueryBuilder,
   JoinType,
   LimitQueryBuilder,
@@ -29,7 +29,7 @@ export class SQLBuilder<QueryReturnType> implements
   FromQueryBuilder<QueryReturnType>,
   JoinQueryBuilder<QueryReturnType>,
   WhereQueryBuilder<QueryReturnType>,
-  // GroupByQueryBuilder,
+  GroupByQueryBuilder<QueryReturnType>,
   OrderByQueryBuilder<QueryReturnType>,
   LimitQueryBuilder<QueryReturnType>,
   OffsetQueryBuilder<QueryReturnType>,
@@ -37,8 +37,7 @@ export class SQLBuilder<QueryReturnType> implements
   UpdateQueryBuilder<QueryReturnType>,
   UpdateQueryBuilderWithoutSet<QueryReturnType>,
   SetQueryBuilder<QueryReturnType>,
-  InsertQueryBuilder<QueryReturnType>
-  {
+  InsertQueryBuilder<QueryReturnType> {
   queryParts: SQL_CONSTRUCTORS;
   private queryFn?: QueryFunction;
 
@@ -78,33 +77,19 @@ export class SQLBuilder<QueryReturnType> implements
     return Math.floor(Date.now() / 1000); // Unix timestamp
   }
 
-  // For simple count query e.g. SELECT COUNT(*) FROM table
-  count(field: string = '*', alias?: string): SelectQueryBuilder<QueryReturnType> {
-    const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
-    this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
-    this.queryParts.select.params = field === '*' ? [] : [field];
-    if (alias) {
-      this.queryParts.select.params.push(alias);
-    }
-    return this;
-  }
-
-  select(fields: SelectFields): SelectQueryBuilder<QueryReturnType> {
+  private processFields(fields: SelectFields): { sql: string, params: string[] } {
     const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
 
     if (typeof fields === 'string') {
       if (fields === '*') {
         // Select all fields
-        this.queryParts.select.sql = 'SELECT *';
-        this.queryParts.select.params = [];
+        return { sql: 'SELECT *', params: [] };
       } else if (wildcardPattern.test(fields)) {
-        // Select specific one field with wildcard e.g. 'table.*'
-        this.queryParts.select.sql = `SELECT ${fields}`;
-        this.queryParts.select.params = [];
+        // Select specific one field with wildcard e.g. '
+        return { sql: `SELECT ${fields}`, params: [] };
       } else {
         // Select specific one field
-        this.queryParts.select.sql = 'SELECT ??';
-        this.queryParts.select.params = [fields];
+        return { sql: 'SELECT ??', params: [fields] };
       }
     } else if (Array.isArray(fields) && fields.length > 0) {
       // Select multiple fields
@@ -119,23 +104,108 @@ export class SQLBuilder<QueryReturnType> implements
       // Flatten the field definitions
       const fieldParams = fields.flatMap((field) => {
         if (typeof field === 'string') {
-          // Return the field if it's a wildcard pattern e.g. 'table.*'
           return wildcardPattern.test(field) ? [] : [field];
         } else if (typeof field === 'object') {
-          // Return the field and alias if it's an object e.g. { 'table.column': 'alias' }
           return Object.entries(field).flatMap(([col, alias]) => alias ? [col, alias] : [col]);
         }
       });
-      // console.log(fieldClauses)
-      // console.log(fieldParams)
-      this.queryParts.select.sql = `SELECT ${fieldClauses.join(', ')}`;
-      this.queryParts.select.params = fieldParams;
-    } else {
-      this.queryParts.select.sql = 'SELECT *';
-      this.queryParts.select.params = [];
-    }
 
+      return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams as string[] || [] };
+    } else {
+      return { sql: 'SELECT *', params: [] };
+    }
+  }
+
+  private buildWhereClause(conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } {
+    const processConditions = (conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
+      const clauses: string[] = [];
+      const localParams: any[] = [];
+
+      for (const key in conditions) {
+        const value = (conditions as any)[key];
+
+        if (key === 'AND' || key === 'OR') {
+          const nestedConditions = value as WhereCondition[];
+          const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
+          const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+          clauses.push(nestedClauseStrings.join(` ${key} `));
+          nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
+        } else {
+          const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+          
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            for (const operator in value) {
+              if (operator === 'IN' && Array.isArray(value[operator])) {
+                clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+                localParams.push(...value[operator]);
+              } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+                localParams.push(value[operator][0], value[operator][1]);
+              } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+                localParams.push(value[operator][0], value[operator][1]);
+              } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+                clauses.push(`${sanitizedKey} ${operator} ?`);
+                localParams.push(value[operator]);
+              } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+                clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+              } else {
+                throw new Error(`Unsupported operator: ${operator}`);
+              }
+            }
+          } else {
+            clauses.push(`${sanitizedKey} = ?`);
+            localParams.push(value);
+          }
+        }
+      }
+
+      return { clause: clauses.join(` ${parentOperator} `), params: localParams };
+    };
+
+    return processConditions(conditions, parentOperator);
+  }
+
+  // For simple count query e.g. SELECT COUNT(*) FROM table
+  count(field: string = '*', alias?: string): SelectQueryBuilder<QueryReturnType> {
+    const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
+    this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
+    this.queryParts.select.params = field === '*' ? [] : [field];
+    if (alias) {
+      this.queryParts.select.params.push(alias);
+    }
     return this;
+  }
+
+  max(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+    this.queryParts.select.sql = `SELECT MAX(??)${alias ? ` AS ??` : ''}`;
+    this.queryParts.select.params = alias ? [field, alias] : [field];
+    return this;
+  }
+
+  min(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+    this.queryParts.select.sql = `SELECT MIN(??)${alias ? ` AS ??` : ''}`;
+    this.queryParts.select.params = alias ? [field, alias] : [field];
+    return this;
+  }
+
+  avg(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+    this.queryParts.select.sql = `SELECT AVG(??)${alias ? ` AS ??` : ''}`;
+    this.queryParts.select.params = alias ? [field, alias] : [field];
+    return this;
+  }
+
+  sum(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+    this.queryParts.select.sql = `SELECT SUM(??)${alias ? ` AS ??` : ''}`;
+    this.queryParts.select.params = alias ? [field, alias] : [field];
+    return this;
+  }
+
+  select(fields: SelectFields): SelectQueryBuilder<QueryReturnType> {
+    const { sql, params } = this.processFields(fields);
+    this.queryParts.select.sql = sql;
+    this.queryParts.select.params = params;
+    return this
   }
 
   from(table: string, alias?: string): FromQueryBuilder<QueryReturnType> {
@@ -183,11 +253,16 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  // groupBy(fields: string[]): SQLBuilder {
-  //   this.queryParts.groupBy.sql = `GROUP BY ${fields.map(() => '??').join(', ')}`;
-  //   this.queryParts.groupBy.params = fields;
-  //   return this;
-  // }
+  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType> {
+    if (typeof fields === 'string') {
+      this.queryParts.groupBy.sql = 'GROUP BY ??';
+      this.queryParts.groupBy.params = [fields];
+    } else if (Array.isArray(fields) && fields.length > 0) {
+      this.queryParts.groupBy.sql = 'GROUP BY ' + fields.map(() => '??').join(', ');
+      this.queryParts.groupBy.params = fields;
+    }
+    return this;
+  }
 
   orderBy(fields: OrderByField[]): OrderByQueryBuilder<QueryReturnType> {
     if (fields.length === 0) return this;
@@ -281,103 +356,6 @@ export class SQLBuilder<QueryReturnType> implements
     this.queryParts.delete.sql = `DELETE FROM ??`;
     this.queryParts.delete.params = [table];
     return this;
-  }
-
-  // private buildWhereClause(conditions: WhereCondition): { clause: string, params: any[] } {
-  //   const whereClauses: string[] = [];
-  //   const params: any[] = [];
-
-  //   for (const key in conditions) {
-  //     const value = conditions[key]; // e.g. { name: { 'LIKE': 'John%' } }
-  //     const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, ''); // Filter out non-alphanumeric characters
-
-  //     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-  //       for (const operator in value) {
-  //         // handle IN condition
-  //         if (operator === 'IN' && Array.isArray(value[operator])) {
-  //           whereClauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
-  //           params.push(...value[operator]);
-
-  //           // handle BETWEEN condition
-  //         } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-  //           whereClauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
-  //           params.push(value[operator][0], value[operator][1]);
-  //         } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-  //           whereClauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
-  //           params.push(value[operator][0], value[operator][1]);
-
-  //           // handle LIKE and other operators
-  //         } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
-  //           whereClauses.push(`${sanitizedKey} ${operator} ?`);
-  //           params.push((value as any)[operator]);
-
-  //           // handle IS NULL and IS NOT NULL
-  //         } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
-  //           // whereClauses.push(`${sanitizedKey} ${operator.replaceAll('_', ' ')}`);
-  //           whereClauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
-  //         }
-  //         else {
-  //           throw new Error(`Unsupported operator: ${operator}`);
-  //         }
-  //       }
-  //     } else {
-  //       // Default to equality
-  //       whereClauses.push(`${sanitizedKey} = ?`);
-  //       params.push(value);
-  //     }
-  //   }
-
-  //   return { clause: whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '', params };
-  // }
-
-  private buildWhereClause(conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } {
-    const processConditions = (conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
-      const clauses: string[] = [];
-      const localParams: any[] = [];
-
-      for (const key in conditions) {
-        const value = (conditions as any)[key];
-
-        if (key === 'AND' || key === 'OR') {
-          const nestedConditions = value as WhereCondition[];
-          const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
-          const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
-          clauses.push(nestedClauseStrings.join(` ${key} `));
-          nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
-        } else {
-          const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
-
-          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            for (const operator in value) {
-              if (operator === 'IN' && Array.isArray(value[operator])) {
-                clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
-                localParams.push(...value[operator]);
-              } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-                clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
-                localParams.push(value[operator][0], value[operator][1]);
-              } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
-                clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
-                localParams.push(value[operator][0], value[operator][1]);
-              } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
-                clauses.push(`${sanitizedKey} ${operator} ?`);
-                localParams.push(value[operator]);
-              } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
-                clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
-              } else {
-                throw new Error(`Unsupported operator: ${operator}`);
-              }
-            }
-          } else {
-            clauses.push(`${sanitizedKey} = ?`);
-            localParams.push(value);
-          }
-        }
-      }
-
-      return { clause: clauses.join(` ${parentOperator} `), params: localParams };
-    };
-
-    return processConditions(conditions, parentOperator);
   }
 
   buildQuery(): {

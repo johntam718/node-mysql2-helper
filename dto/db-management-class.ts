@@ -129,7 +129,7 @@ export class DatabaseManagement {
     }
   }
 
-  async executeQuery<T>(sql: string, params?: any[]): Promise<T> {
+  async executeQuery<T = any>(sql: string, params?: any[]): Promise<T> {
     // Log the constructed SQL query and parameters
     // if (this.verbose) {
     //   console.log('Output SQL:', sql);
