@@ -1,5 +1,6 @@
 import {
   DeleteQueryBuilder,
+  FieldAlias,
   FromQueryBuilder,
   GroupByQueryBuilder,
   InsertOptions,
@@ -77,7 +78,7 @@ export class SQLBuilder<QueryReturnType> implements
     return Math.floor(Date.now() / 1000); // Unix timestamp
   }
 
-  private processFields(fields: SelectFields): { sql: string, params: string[] } {
+  private processFields<T extends string>(fields: SelectFields<T>): { sql: string, params: string[] } {
     const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
 
     if (typeof fields === 'string') {
@@ -85,7 +86,7 @@ export class SQLBuilder<QueryReturnType> implements
         // Select all fields
         return { sql: 'SELECT *', params: [] };
       } else if (wildcardPattern.test(fields)) {
-        // Select specific one field with wildcard e.g. '
+        // Select specific one field with wildcard e.g. table.*
         return { sql: `SELECT ${fields}`, params: [] };
       } else {
         // Select specific one field
@@ -116,6 +117,24 @@ export class SQLBuilder<QueryReturnType> implements
     }
   }
 
+  private uniqueFields<T extends string>(fields: (T | FieldAlias<T>)[]) {
+    const seen = new Map<string, T | FieldAlias<T>>();
+
+    fields.forEach(field => {
+      if (typeof field === 'string') {
+        seen.set(field, field);
+      } else if (typeof field === 'object') {
+        const key = Object.keys(field)[0];
+        const value = field[key as T];
+        const fieldString = `${key}:${value}`;
+        if (!seen.has(fieldString)) {
+          seen.set(fieldString, field);
+        }
+      }
+    });
+    return Array.from(seen.values());
+  }
+
   private buildWhereClause(conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } {
     const processConditions = (conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
       const clauses: string[] = [];
@@ -132,7 +151,7 @@ export class SQLBuilder<QueryReturnType> implements
           nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
         } else {
           const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
-          
+
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
             for (const operator in value) {
               if (operator === 'IN' && Array.isArray(value[operator])) {
@@ -201,8 +220,9 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  select(fields: SelectFields): SelectQueryBuilder<QueryReturnType> {
-    const { sql, params } = this.processFields(fields);
+  select<T extends string>(fields: SelectFields<T>): SelectQueryBuilder<QueryReturnType> {
+    const _fields = Array.isArray(fields) ? this.uniqueFields<T>(fields) : fields;
+    const { sql, params } = this.processFields<T>(_fields);
     this.queryParts.select.sql = sql;
     this.queryParts.select.params = params;
     return this
@@ -418,7 +438,7 @@ export class SQLBuilder<QueryReturnType> implements
 
   executeQuery<T = QueryReturnType>(): Promise<T> {
     const [sql, params] = this.buildQuery();
-    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in the constructor');
+    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in the BuildSQLModel constructor');
     return this.queryFn<T>(sql, params);
   }
 }

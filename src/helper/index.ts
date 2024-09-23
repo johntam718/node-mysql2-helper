@@ -9,7 +9,8 @@ import {
   QueryAction,
   UpdateOptions,
   WhereCondition,
-  SoftDeleteOptions
+  SoftDeleteOptions,
+  FieldAlias
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -66,14 +67,14 @@ export class BuildSQLModel<T extends string, PK extends T> {
   }
 
   findOne(values: {
-    fields?: T[],
+    fields?: (T | FieldAlias<T>)[],
     where: WhereCondition,
     orderBy?: OrderByField[],
   }) {
     const { where, orderBy = [], fields } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<RowDataPacket[]>();
-    const _fields = Array.isArray(fields) ? Array.from(new Set(fields)) : "*";
+    const _fields = Array.isArray(fields) ? fields : "*";
     return SQLBuild.select(_fields)
       .from(this.tableName)
       .where(where)
@@ -82,14 +83,14 @@ export class BuildSQLModel<T extends string, PK extends T> {
   }
 
   findAll(values?: Prettify<{
-    fields?: T[],
+    fields?: (T | FieldAlias<T>)[],
     where?: WhereCondition,
     orderBy?: OrderByField[],
   } & LimitOffset>) {
     const { where, orderBy = [], fields, limit, offset } = values || {};
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('FindAll :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<RowDataPacket[]>();
-    const _fields = Array.isArray(fields) ? Array.from(new Set(fields)) : "*";
+    const _fields = Array.isArray(fields) ? fields : "*";
     return SQLBuild.select(_fields)
       .from(this.tableName)
       .where(where as WhereCondition)

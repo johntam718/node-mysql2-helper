@@ -24,8 +24,9 @@ export type SQL_CONSTRUCTORS = {
   limit: { sql: string, params: any[] },
 }
 
-export type FieldAlias = { [field: string]: string };
-export type SelectFields = '*' | (string & {}) | string[] | (string | FieldAlias)[];
+
+export type FieldAlias<T extends string> = { [key in T]?: string };
+export type SelectFields<T extends string> = '*' | (T) | (T | FieldAlias<T>)[];
 export type OrderByField = { field: string, direction?: 'ASC' | 'DESC' };
 export type SetValues = ObjectValues;
 export type InsertValues = ObjectValues;
