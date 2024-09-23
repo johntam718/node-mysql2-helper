@@ -24,10 +24,9 @@ export type SQL_CONSTRUCTORS = {
   limit: { sql: string, params: any[] },
 }
 
-
-export type FieldAlias<T extends string> = { [key in T]?: string };
-export type SelectFields<T extends string> = '*' | (T) | (T | FieldAlias<T>)[];
-export type OrderByField = { field: string, direction?: 'ASC' | 'DESC' };
+export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };;
+export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T>)[];
+export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
 export type SetValues = ObjectValues;
 export type InsertValues = ObjectValues;
 
@@ -61,37 +60,37 @@ export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 export type BuildQueryResult = { sql: string; params: any[];[Symbol.iterator](): Iterator<any> };
 export type QueryFunction = <T>(sql: string, params?: any[]) => Promise<T>
 
-export type QueryAction<T> = {
+export type QueryAction<QueryReturnType> = {
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export type SelectQueryBuilder<T> = {
-  from(table: string, alias?: string): FromQueryBuilder<T>;
+export type SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
+  from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export interface WhereQueryBuilder<T> {
-  orderBy(fields: OrderByField[]): OrderByQueryBuilder<T>;
-  limit(limit: number): LimitQueryBuilder<T>;
-  groupBy(fields: string | string[]): GroupByQueryBuilder<T>;
+export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+  orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
+  limit(limit: number): LimitQueryBuilder<QueryReturnType>;
+  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export type FromQueryBuilder<T> = {
-  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<T>;
-  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<T>;
-  where(where: WhereCondition): WhereQueryBuilder<T>;
-  groupBy(fields: string | string[]): GroupByQueryBuilder<T>;
-  orderBy(fields: OrderByField[]): OrderByQueryBuilder<T>;
-  limit(limit: number): LimitQueryBuilder<T>;
+export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
+  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
+  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
+  where(where: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
+  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType>;
+  orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
+  limit(limit: number): LimitQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export interface JoinQueryBuilder<T> extends FromQueryBuilder<T> { }
+export interface JoinQueryBuilder<ColumnKeys extends string, QueryReturnType> extends FromQueryBuilder<ColumnKeys, QueryReturnType> { }
 // export interface GroupByQueryBuilder extends FromQueryBuilder { }
 
 export interface OrderByQueryBuilder<T> {
@@ -99,41 +98,41 @@ export interface OrderByQueryBuilder<T> {
   buildQuery(): BuildQueryResult;
   executeQuery<K = T>(): Promise<K>;
 }
-export interface GroupByQueryBuilder<T> extends QueryAction<T> { }
-export interface LimitQueryBuilder<T> {
-  offset(offset: number): OffsetQueryBuilder<T>;
+export interface GroupByQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> { }
+export interface LimitQueryBuilder<QueryReturnType> {
+  offset(offset: number): OffsetQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface OffsetQueryBuilder<T> {
+export interface OffsetQueryBuilder<QueryReturnType> {
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface UpdateQueryBuilder<T> {
-  set?(values: SetValues): UpdateQueryBuilder<T>;
-  where(conditions: WhereCondition): WhereQueryBuilder<T>;
+export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+  set?(values: SetValues): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
+  where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface UpdateQueryBuilderWithoutSet<T> {
-  where(conditions: WhereCondition): WhereQueryBuilder<T>;
+export interface UpdateQueryBuilderWithoutSet<ColumnKeys extends string, QueryReturnType> {
+  where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface SetQueryBuilder<T> {
-  where(conditions: WhereCondition): WhereQueryBuilder<T>;
+export interface SetQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+  where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface InsertQueryBuilder<T> {
+export interface InsertQueryBuilder<QueryReturnType> {
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface DeleteQueryBuilder<T> {
-  where(conditions: WhereCondition): WhereQueryBuilder<T>;
-  limit(limit: number): LimitQueryBuilder<T>;
+export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+  where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
+  limit(limit: number): LimitQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
 // --------------------------------------------------QUERY BUILDER END--------------------------------------------------
@@ -166,18 +165,20 @@ type OperatorCondition = Prettify<EqualOperator &
 >;
 
 // export type WhereCondition = { [key: string]: OperatorCondition | string | number }
-export type SimpleCondition = {
+export type SimpleCondition<ColumnKeys extends string> = {
+  [key in ColumnKeys]?: OperatorCondition | string | number;
+} & {
   [key: string]: OperatorCondition | string | number;
 };
 
 type NonEmptyArray<T> = [T, ...T[]];
 
-export type NestedCondition = {
-  AND?: NonEmptyArray<WhereCondition>;
-  OR?: NonEmptyArray<WhereCondition>;
+export type NestedCondition<ColumnKeys extends string> = {
+  AND?: NonEmptyArray<WhereCondition<ColumnKeys>>;
+  OR?: NonEmptyArray<WhereCondition<ColumnKeys>>;
 };
 
-export type WhereCondition = Prettify<SimpleCondition | NestedCondition>;
+export type WhereCondition<ColumnKeys extends string> = Prettify<SimpleCondition<ColumnKeys> | NestedCondition<ColumnKeys>>;
 
 export type DatabaseManagementOptions = {
   verbose?: boolean;

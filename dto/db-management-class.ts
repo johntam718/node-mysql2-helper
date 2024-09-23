@@ -1,6 +1,7 @@
 import mysql, {
   type ConnectionOptions,
   type Pool, PoolConnection,
+  QueryResult,
 } from 'mysql2/promise';
 import { SQLBuilder } from './sql-builder-class';
 import { DatabaseManagementOptions } from './types';
@@ -78,8 +79,8 @@ export class DatabaseManagement {
     return DatabaseManagement.instances;
   }
 
-  initNewSQLBuilder<T>(): SQLBuilder<T> {
-    return new SQLBuilder<T>(this.executeQuery.bind(this));
+  initNewSQLBuilder<ColumnKeys extends string, QueryReturnType = QueryResult>(): SQLBuilder<ColumnKeys, QueryReturnType> {
+    return new SQLBuilder<ColumnKeys, QueryReturnType>(this.executeQuery.bind(this));
   }
 
   async createTransactionConnection() {

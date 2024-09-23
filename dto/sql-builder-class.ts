@@ -25,19 +25,19 @@ import {
   WhereQueryBuilder
 } from '@dto/types';
 
-export class SQLBuilder<QueryReturnType> implements
-  SelectQueryBuilder<QueryReturnType>,
-  FromQueryBuilder<QueryReturnType>,
-  JoinQueryBuilder<QueryReturnType>,
-  WhereQueryBuilder<QueryReturnType>,
+export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implements
+  SelectQueryBuilder<ColumnKeys, QueryReturnType>,
+  FromQueryBuilder<ColumnKeys, QueryReturnType>,
+  JoinQueryBuilder<ColumnKeys, QueryReturnType>,
+  WhereQueryBuilder<ColumnKeys, QueryReturnType>,
   GroupByQueryBuilder<QueryReturnType>,
   OrderByQueryBuilder<QueryReturnType>,
   LimitQueryBuilder<QueryReturnType>,
   OffsetQueryBuilder<QueryReturnType>,
-  DeleteQueryBuilder<QueryReturnType>,
-  UpdateQueryBuilder<QueryReturnType>,
-  UpdateQueryBuilderWithoutSet<QueryReturnType>,
-  SetQueryBuilder<QueryReturnType>,
+  DeleteQueryBuilder<ColumnKeys, QueryReturnType>,
+  UpdateQueryBuilder<ColumnKeys, QueryReturnType>,
+  UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>,
+  SetQueryBuilder<ColumnKeys, QueryReturnType>,
   InsertQueryBuilder<QueryReturnType> {
   queryParts: SQL_CONSTRUCTORS;
   private queryFn?: QueryFunction;
@@ -135,8 +135,8 @@ export class SQLBuilder<QueryReturnType> implements
     return Array.from(seen.values());
   }
 
-  private buildWhereClause(conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } {
-    const processConditions = (conditions: WhereCondition, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
+  private buildWhereClause(conditions: WhereCondition<ColumnKeys>, parentOperator: string = 'AND'): { clause: string, params: any[] } {
+    const processConditions = (conditions: WhereCondition<ColumnKeys>, parentOperator: string = 'AND'): { clause: string, params: any[] } => {
       const clauses: string[] = [];
       const localParams: any[] = [];
 
@@ -144,7 +144,7 @@ export class SQLBuilder<QueryReturnType> implements
         const value = (conditions as any)[key];
 
         if (key === 'AND' || key === 'OR') {
-          const nestedConditions = value as WhereCondition[];
+          const nestedConditions = value as WhereCondition<ColumnKeys>[];
           const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
           const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
           clauses.push(nestedClauseStrings.join(` ${key} `));
@@ -186,7 +186,7 @@ export class SQLBuilder<QueryReturnType> implements
   }
 
   // For simple count query e.g. SELECT COUNT(*) FROM table
-  count(field: string = '*', alias?: string): SelectQueryBuilder<QueryReturnType> {
+  count(field: string = '*', alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
     this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
     this.queryParts.select.params = field === '*' ? [] : [field];
@@ -196,39 +196,39 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  max(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+  max(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT MAX(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  min(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+  min(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT MIN(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  avg(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+  avg(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT AVG(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  sum(field: string, alias?: string): SelectQueryBuilder<QueryReturnType> {
+  sum(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT SUM(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  select<T extends string>(fields: SelectFields<T>): SelectQueryBuilder<QueryReturnType> {
-    const _fields = Array.isArray(fields) ? this.uniqueFields<T>(fields) : fields;
-    const { sql, params } = this.processFields<T>(_fields);
+  select(fields: SelectFields<ColumnKeys>): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+    const _fields = Array.isArray(fields) ? this.uniqueFields<ColumnKeys>(fields) : fields;
+    const { sql, params } = this.processFields<ColumnKeys>(_fields);
     this.queryParts.select.sql = sql;
     this.queryParts.select.params = params;
     return this
   }
 
-  from(table: string, alias?: string): FromQueryBuilder<QueryReturnType> {
+  from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType> {
     const [tableName, extractedAlias] = this.extractTableAndAlias(table, alias);
 
     this.queryParts.from.sql = `FROM ??`;
@@ -241,10 +241,10 @@ export class SQLBuilder<QueryReturnType> implements
   }
 
   // Overload signatures for the join method
-  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<QueryReturnType>;
-  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<QueryReturnType>;
+  join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
+  join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
   // Implementation of the join method
-  join(joinType: JoinType, table: string, aliasOrOnCondition: string, onCondition?: string): JoinQueryBuilder<QueryReturnType> {
+  join(joinType: JoinType, table: string, aliasOrOnCondition: string, onCondition?: string): JoinQueryBuilder<ColumnKeys, QueryReturnType> {
     let alias: string | undefined;
     let actualOnCondition: string;
 
@@ -266,7 +266,7 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  where(conditions: WhereCondition): WhereQueryBuilder<QueryReturnType> {
+  where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType> {
     const { clause, params } = this.buildWhereClause(conditions);
     this.queryParts.where.sql = clause ? `WHERE ${clause}` : '';
     this.queryParts.where.params = params;
@@ -284,7 +284,7 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  orderBy(fields: OrderByField[]): OrderByQueryBuilder<QueryReturnType> {
+  orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType> {
     if (fields.length === 0) return this;
     this.queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
     this.queryParts.orderBy.params = fields.map(({ field }) => field);
@@ -304,10 +304,10 @@ export class SQLBuilder<QueryReturnType> implements
     this.queryParts.offset.params = [offset];
     return this;
   }
-  update(table: string): UpdateQueryBuilder<QueryReturnType>;
-  update(table: string, values: SetValues): UpdateQueryBuilderWithoutSet<QueryReturnType>;
-  update(table: string, values: SetValues, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<QueryReturnType>;
-  update(table: string, values?: SetValues, options?: UpdateOptions): UpdateQueryBuilder<QueryReturnType> | UpdateQueryBuilderWithoutSet<QueryReturnType> {
+  update(table: string): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
+  update(table: string, values: SetValues): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values: SetValues, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values?: SetValues, options?: UpdateOptions): UpdateQueryBuilder<ColumnKeys, QueryReturnType> | UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType> {
     const utimeField = options?.utimeField || 'utime';
     const { enableTimestamps = false } = options || {};
 
@@ -328,12 +328,12 @@ export class SQLBuilder<QueryReturnType> implements
 
     if (values) {
       this.set(values);
-      return this as UpdateQueryBuilderWithoutSet<QueryReturnType>;
+      return this as UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
     }
     return this;
   }
 
-  set(values: SetValues): SetQueryBuilder<QueryReturnType> {
+  set(values: SetValues): SetQueryBuilder<ColumnKeys, QueryReturnType> {
     const setClauses = Object.keys(values).map(key => `?? = ?`);
     const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
     this.queryParts.set.sql = `SET ${setClauses.join(', ')}`;
@@ -372,7 +372,7 @@ export class SQLBuilder<QueryReturnType> implements
     return this;
   }
 
-  deleteFrom(table: string): DeleteQueryBuilder<QueryReturnType> {
+  deleteFrom(table: string): DeleteQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.delete.sql = `DELETE FROM ??`;
     this.queryParts.delete.params = [table];
     return this;
