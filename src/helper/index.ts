@@ -10,7 +10,9 @@ import {
   UpdateOptions,
   WhereCondition,
   SoftDeleteOptions,
-  FieldAlias
+  FieldAlias,
+  PatchOptions,
+  CentralFields
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -21,17 +23,30 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
   private tableName: string;
   private primaryKey: PrimaryKey;
   private columns: ColumnKeys[];
+  private centralFields: CentralFields;
   private queryFn?: QueryFunction;
 
   constructor(config: {
     tableName: string,
     primaryKey: PrimaryKey,
     columns: ColumnKeys[],
+    centralFields?: CentralFields
     queryFn?: QueryFunction
   }) {
     this.tableName = config.tableName;
     this.primaryKey = config.primaryKey;
     this.columns = config.columns;
+    const defaultCentralFields: CentralFields = {
+      ctimeField: 'ctime',
+      utimeField: 'utime',
+      isActiveField: 'is_active',
+      isDeletedField: 'is_deleted',
+      statusField: 'status'
+    };
+    this.centralFields = {
+      ...defaultCentralFields,
+      ...(config?.centralFields || {})
+    };
     this.queryFn = config.queryFn;
     this.checkConfig();
   }
@@ -73,7 +88,7 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
   }) {
     const { where, orderBy = [], fields } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
-    const SQLBuild = this.initSQLBuilder<ColumnKeys,  RowDataPacket[]>();
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
     const _fields = Array.isArray(fields) ? fields : "*";
     return SQLBuild.select(_fields)
       .from(this.tableName)
@@ -124,7 +139,6 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
       .where(where) as QueryAction<ResultSetHeader>;
-
   }
 
   create(data: ColumnData<ColumnKeys>, options?: InsertOptions) {
@@ -174,38 +188,45 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
       .orderBy(orderBy);
   }
 
-  // patchIsActive(values: {
-  //   where: WhereCondition,
-  //   isActive: boolean,
-  //   options?: UpdateOptions
-  // }) {
-  //   const { where, isActive, options } = values || {};
-  //   this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
-  //   const SQLBuild = this.initSQLBuilder<ResultSetHeader>();
-  //   return SQLBuild.update(this.tableName, { is_active: isActive ? 1 : 0 }, options)
-  //     .where(where) as QueryAction<ResultSetHeader>;
-  // }
+  patchActiveStatus<T>(values: {
+    where: WhereCondition<ColumnKeys>,
+    value: T,
+    options?: PatchOptions
+  }) {
+    const { where, value, options } = values || {};
+    const { patchField } = options || {};
+    this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    const data = { [patchField || this.centralFields.isActiveField!]: value } as ColumnData<ColumnKeys>;
+    return SQLBuild.update(this.tableName, data, options)
+      .where(where) as QueryAction<ResultSetHeader>;
+  }
 
-  // softDeleteOne(values: {
-  //   where: WhereCondition,
-  //   options?: SoftDeleteOptions
-  // }) {
-  //   const { where, options } = values || {};
-  //   this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDeleteOne :: Where condition cannot be empty'));
-  //   const SQLBuild = this.initSQLBuilder<ResultSetHeader>();
-  //   return SQLBuild.update(this.tableName, { is_deleted: 1 }, options)
-  //     .where(where)
-  //     .limit(1) as QueryAction<ResultSetHeader>;
-  // }
+  softDeleteOne<T>(values: {
+    where: WhereCondition<ColumnKeys>,
+    value: T,
+    options?: SoftDeleteOptions
+  }) {
+    const { where, value, options } = values || {};
+    this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDeleteOne :: Where condition cannot be empty'));
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    const data = { [options?.deleteField || this.centralFields.isDeletedField!]: value } as ColumnData<ColumnKeys>;
+    return SQLBuild.update(this.tableName, data, options)
+      .where(where)
+      .limit(1) as QueryAction<ResultSetHeader>;
+  }
 
-  // softDelete(values: {
-  //   where: WhereCondition,
-  //   options?: SoftDeleteOptions
-  // }) {
-  //   const { where = {}, options } = values || {};
-  //   this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDelete :: Where condition cannot be empty'));
-  //   const SQLBuild = this.initSQLBuilder<ResultSetHeader>();
-  //   return SQLBuild.update(this.tableName, { is_deleted: 1 }, options)
-  //     .where(where) as QueryAction<ResultSetHeader>;
-  // }
+  softDelete(values: {
+    where: WhereCondition<ColumnKeys>,
+    value: any,
+    options?: SoftDeleteOptions
+  }) {
+    const { where, value, options } = values || {};
+    this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDelete :: Where condition cannot be empty'));
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    const data = { [options?.deleteField || this.centralFields.isDeletedField!]: value } as ColumnData<ColumnKeys>;
+    return SQLBuild.update(this.tableName, data, options)
+      .where(where) as QueryAction<ResultSetHeader>;
+  }
+
 }

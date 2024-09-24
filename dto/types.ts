@@ -24,6 +24,14 @@ export type SQL_CONSTRUCTORS = {
   limit: { sql: string, params: any[] },
 }
 
+export type CentralFields = {
+  ctimeField?: string;
+  utimeField?: string;
+  isActiveField?: string;
+  isDeletedField?: string;
+  statusField?: string;
+}
+
 export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };;
 export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T>)[];
 export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
@@ -47,6 +55,10 @@ export type UpdateOptions = {
   utimeField?: string;
   utimeValue?: any;
 };
+
+export type PatchOptions = Prettify<{
+  patchField?: string;
+} &  Omit<UpdateOptions, 'primaryKey'>>;
 
 export type SoftDeleteOptions = Prettify<{
   deleteField?: string;
