@@ -109,7 +109,7 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
     this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data, options)
+    return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
       .where(where)
       .limit(1) as QueryAction<ResultSetHeader>;
   }
@@ -122,7 +122,7 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
     const { data, where = {}, options } = values || {};
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data, options)
+    return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
       .where(where) as QueryAction<ResultSetHeader>;
 
   }

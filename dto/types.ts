@@ -27,8 +27,7 @@ export type SQL_CONSTRUCTORS = {
 export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };;
 export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T>)[];
 export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
-export type SetValues = ObjectValues;
-export type InsertValues = ObjectValues;
+export type GroupByField<T> = T | (string & {}) | T[];
 
 export type ColumnData<T extends string> = Partial<Record<T, any>>;
 
@@ -37,12 +36,16 @@ export type InsertOptions = {
   onDuplicateKeyUpdate?: ObjectValues;
   enableTimestamps?: boolean;
   ctimeField?: string;
+  ctimeValue?: any;
   utimeField?: string;
+  utimeValue?: any;
 };
 
 export type UpdateOptions = {
   enableTimestamps?: boolean;
+  primaryKey?: string;
   utimeField?: string;
+  utimeValue?: any;
 };
 
 export type SoftDeleteOptions = Prettify<{
@@ -74,7 +77,7 @@ export type SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
 export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> {
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
   limit(limit: number): LimitQueryBuilder<QueryReturnType>;
-  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType>;
+  groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
@@ -83,7 +86,7 @@ export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
   join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
   join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
   where(where: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType>;
+  groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
   limit(limit: number): LimitQueryBuilder<QueryReturnType>;
   buildQuery(): BuildQueryResult;
@@ -109,7 +112,7 @@ export interface OffsetQueryBuilder<QueryReturnType> {
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> {
-  set?(values: SetValues): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
+  set?(values: ColumnData<ColumnKeys>): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(): BuildQueryResult;
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;

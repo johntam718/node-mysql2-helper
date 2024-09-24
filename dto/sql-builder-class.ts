@@ -1,11 +1,12 @@
 import {
+  ColumnData,
   DeleteQueryBuilder,
   FieldAlias,
   FromQueryBuilder,
+  GroupByField,
   GroupByQueryBuilder,
   InsertOptions,
   InsertQueryBuilder,
-  InsertValues,
   JoinQueryBuilder,
   JoinType,
   LimitQueryBuilder,
@@ -16,7 +17,6 @@ import {
   SelectFields,
   SelectQueryBuilder,
   SetQueryBuilder,
-  SetValues,
   SQL_CONSTRUCTORS,
   UpdateOptions,
   UpdateQueryBuilder,
@@ -117,6 +117,26 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     }
   }
 
+  private checkEmptyObject(obj: Object) {
+    return Object.keys(obj).length === 0;
+  }
+
+  private checkTableName(tableName: string, caller?: string) {
+    if (!tableName) {
+      throw new Error(this.printPrefixMessage('Table name is required'));
+    }
+  }
+
+  private throwEmptyObjectError(obj: Object, message?: string) {
+    if (this.checkEmptyObject(obj)) {
+      throw new Error(message || 'Object cannot be empty');
+    }
+  }
+
+  private printPrefixMessage(message: string) {
+    return `[SQLBuilder] :: ${message}`;
+  }
+
   private uniqueFields<T extends string>(fields: (T | FieldAlias<T>)[]) {
     const seen = new Map<string, T | FieldAlias<T>>();
 
@@ -142,8 +162,10 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
 
       for (const key in conditions) {
         const value = (conditions as any)[key];
-
         if (key === 'AND' || key === 'OR') {
+          if (!Array.isArray(value) || value.length === 0) {
+            throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
+          }
           const nestedConditions = value as WhereCondition<ColumnKeys>[];
           const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
           const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
@@ -169,7 +191,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
               } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
                 clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
               } else {
-                throw new Error(`Unsupported operator: ${operator}`);
+                throw new Error(this.printPrefixMessage(`processConditions :: Unsupported operator: ${operator}`));
               }
             }
           } else {
@@ -229,6 +251,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType> {
+    this.checkTableName(table, 'from');
     const [tableName, extractedAlias] = this.extractTableAndAlias(table, alias);
 
     this.queryParts.from.sql = `FROM ??`;
@@ -273,7 +296,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  groupBy(fields: string | string[]): GroupByQueryBuilder<QueryReturnType> {
+  groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType> {
     if (typeof fields === 'string') {
       this.queryParts.groupBy.sql = 'GROUP BY ??';
       this.queryParts.groupBy.params = [fields];
@@ -285,46 +308,53 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType> {
-    if (fields.length === 0) return this;
+    if (!Array.isArray(fields) || fields.length === 0) return this;
     this.queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
     this.queryParts.orderBy.params = fields.map(({ field }) => field);
     return this;
   }
 
   limit(limit: number): LimitQueryBuilder<QueryReturnType> {
-    if (limit < 0) return this;
+    if (isNaN(limit) || limit < 0) return this;
     this.queryParts.limit.sql = `LIMIT ?`;
     this.queryParts.limit.params = [limit];
     return this;
   }
 
   offset(offset: number): OffsetQueryBuilder<QueryReturnType> {
-    if (offset < 0) return this;
+    if (isNaN(offset) || offset < 0) return this;
     this.queryParts.offset.sql = `OFFSET ?`;
     this.queryParts.offset.params = [offset];
     return this;
   }
   update(table: string): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
-  update(table: string, values: SetValues): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-  update(table: string, values: SetValues, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-  update(table: string, values?: SetValues, options?: UpdateOptions): UpdateQueryBuilder<ColumnKeys, QueryReturnType> | UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType> {
-    const utimeField = options?.utimeField || 'utime';
-    const { enableTimestamps = false } = options || {};
+  update(table: string, values: ColumnData<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values: ColumnData<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values?: ColumnData<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilder<ColumnKeys, QueryReturnType> | UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType> {
+    this.checkTableName(table, 'update');
+    const {
+      enableTimestamps = false,
+      utimeField = 'utime',
+      utimeValue = this.getCurrentUnixTimestamp(),
+      primaryKey
+    } = options || {};
 
     if (enableTimestamps) {
-      const currentTime = this.getCurrentUnixTimestamp();
+      const currentTime = utimeValue;
       if (values) {
-        values[utimeField] = currentTime;
+        (values as Record<string, any>)[utimeField] = currentTime;
       }
     }
 
+    // Avoid updating the primary key
+    if ((primaryKey && values) && (values as Record<string, any>)?.[primaryKey]) {
+      delete (values as Record<string, any>)[primaryKey];
+    }
 
     this.queryParts.update.sql = `UPDATE ??`;
     this.queryParts.update.params = [table];
 
-    if (Object.keys(values || {}).length === 0) {
-      throw new Error('Please provide data to update');
-    }
+    this.throwEmptyObjectError(values as Object, this.printPrefixMessage('Update :: Data cannot be empty'));
 
     if (values) {
       this.set(values);
@@ -333,7 +363,8 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  set(values: SetValues): SetQueryBuilder<ColumnKeys, QueryReturnType> {
+  set(values: ColumnData<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType> {
+    this.throwEmptyObjectError(values, this.printPrefixMessage('Set :: Values cannot be empty'));
     const setClauses = Object.keys(values).map(key => `?? = ?`);
     const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
     this.queryParts.set.sql = `SET ${setClauses.join(', ')}`;
@@ -341,15 +372,18 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  insert(table: string, values: InsertValues, options?: InsertOptions): InsertQueryBuilder<QueryReturnType> {
-    const ctimeField = options?.ctimeField || 'ctime';
-    const utimeField = options?.utimeField || 'utime';
-
-    const { enableTimestamps = false } = options || {};
+  insert(table: string, values: ColumnData<ColumnKeys>, options?: InsertOptions): InsertQueryBuilder<QueryReturnType> {
+    this.checkTableName(table, 'insert');
+    const {
+      enableTimestamps = false,
+      ctimeField = 'ctime',
+      utimeField = 'utime',
+      ctimeValue = this.getCurrentUnixTimestamp(),
+      utimeValue = this.getCurrentUnixTimestamp(),
+    } = options || {};
     if (enableTimestamps) {
-      const currentTime = this.getCurrentUnixTimestamp();
-      values[ctimeField] = currentTime;
-      values[utimeField] = currentTime;
+      (values as Record<string, any>)[ctimeField] = ctimeValue;
+      (values as Record<string, any>)[utimeField] = utimeValue;
     }
 
     const columns = Object.keys(values); // e.g. ['name', 'email', 'password']
@@ -373,6 +407,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   deleteFrom(table: string): DeleteQueryBuilder<ColumnKeys, QueryReturnType> {
+    this.checkTableName(table, 'delete');
     this.queryParts.delete.sql = `DELETE FROM ??`;
     this.queryParts.delete.params = [table];
     return this;
@@ -437,8 +472,8 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   executeQuery<T = QueryReturnType>(): Promise<T> {
+    if (!this.queryFn) throw new Error(this.printPrefixMessage('executeQuery :: Query function is not defined / provided'));
     const [sql, params] = this.buildQuery();
-    if (!this.queryFn) throw new Error('Please provide a query function to execute the query in the BuildSQLModel constructor');
     return this.queryFn<T>(sql, params);
   }
 }
