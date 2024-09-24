@@ -12,7 +12,8 @@ import {
   SoftDeleteOptions,
   FieldAlias,
   PatchOptions,
-  CentralFields
+  CentralFields,
+  BuildSQLConstructor
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -26,13 +27,7 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
   private centralFields: CentralFields;
   private queryFn?: QueryFunction;
 
-  constructor(config: {
-    tableName: string,
-    primaryKey: PrimaryKey,
-    columns: ColumnKeys[],
-    centralFields?: CentralFields
-    queryFn?: QueryFunction
-  }) {
+  constructor(config: BuildSQLConstructor<ColumnKeys[], PrimaryKey>) {
     this.tableName = config.tableName;
     this.primaryKey = config.primaryKey;
     this.columns = config.columns;

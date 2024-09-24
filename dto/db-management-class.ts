@@ -1,11 +1,10 @@
 import mysql, {
   type ConnectionOptions,
-  type Pool, PoolConnection,
-  QueryResult,
+  type Pool,
 } from 'mysql2/promise';
-import { SQLBuilder } from './sql-builder-class';
-import { DatabaseManagementOptions } from './types';
+import { BuildSQLConstructor, DatabaseConnectionConfig, DatabaseManagementOptions } from './types';
 import logger from '@lib/logger';
+import { BuildSQLModel } from '@src/helper';
 
 // Singleton class to manage database connections
 export class DatabaseManagement {
@@ -47,7 +46,7 @@ export class DatabaseManagement {
     }
   }
 
-  static initDatabaseConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+  static initSingleDatabaseConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
     if (!DatabaseManagement.instances.has(identifierName)) {
       try {
         const instance = new DatabaseManagement(identifierName, config, options);
@@ -58,6 +57,22 @@ export class DatabaseManagement {
       } catch (error) {
         console.error(`Failed to initialize database connection for identifier ${identifierName}:`, error);
         throw error; // Re-throw the error after logging it
+      }
+    }
+  }
+
+  static initMultipleDatabaseConnection(configs: DatabaseConnectionConfig[]): void {
+    for (const { identifierName, config, options } of configs) {
+      if (!DatabaseManagement.instances.has(identifierName)) {
+        try {
+          const instance = new DatabaseManagement(identifierName, config, options);
+          instance.initConnection(); // Initialize the connection
+          logger.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
+          DatabaseManagement.instances.set(identifierName, instance);
+        } catch (error) {
+          console.error(`Failed to initialize database connection for identifier ${identifierName}:`, error);
+          throw error; // Re-throw the error after logging it
+        }
       }
     }
   }
@@ -79,8 +94,8 @@ export class DatabaseManagement {
     return DatabaseManagement.instances;
   }
 
-  initNewSQLBuilder<ColumnKeys extends string, QueryReturnType = QueryResult>(): SQLBuilder<ColumnKeys, QueryReturnType> {
-    return new SQLBuilder<ColumnKeys, QueryReturnType>(this.executeQuery.bind(this));
+  createSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: BuildSQLConstructor<ColumnKeys[], PrimaryKey>) {
+    return new BuildSQLModel(BuildSQLConstructor);
   }
 
   async createTransactionConnection() {

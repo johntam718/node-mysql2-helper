@@ -1,3 +1,5 @@
+import { ConnectionOptions } from "mysql2/promise";
+
 /**
  * Represents a type that prettifies another type by preserving its keys and values.
  * @template T - The type to be prettified.
@@ -7,6 +9,13 @@ export type Prettify<T> = {
 } & unknown;
 
 type ObjectValues = { [key: string]: any };
+
+export type DatabaseConnectionConfig = {
+  identifierName: string;
+  config: ConnectionOptions;
+  options?: DatabaseManagementOptions;
+}
+
 
 export type SQL_CONSTRUCTORS = {
   count: { sql: string, params: any[] },
@@ -22,6 +31,14 @@ export type SQL_CONSTRUCTORS = {
   orderBy: { sql: string, params: any[] },
   offset: { sql: string, params: any[] },
   limit: { sql: string, params: any[] },
+}
+
+export type BuildSQLConstructor<ColumnKeys, PrimaryKey> = {
+  tableName: string,
+  primaryKey: PrimaryKey,
+  columns: ColumnKeys,
+  centralFields?: CentralFields
+  queryFn?: QueryFunction
 }
 
 export type CentralFields = {
