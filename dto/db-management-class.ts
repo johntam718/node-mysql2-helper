@@ -51,11 +51,11 @@ export class DatabaseManagement {
     }
   }
 
-  private static initializeConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+  private static async initializeConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
     if (!DatabaseManagement.instances.has(identifierName)) {
       try {
         const instance = new DatabaseManagement(identifierName, config, options);
-        instance.initConnection(); // Initialize the connection
+        await instance.initConnection(); // Initialize the connection
         logger.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
         DatabaseManagement.instances.set(identifierName, instance);
       } catch (error) {
@@ -65,13 +65,13 @@ export class DatabaseManagement {
     }
   }
 
-  static connectSingleDatabase(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
-    DatabaseManagement.initializeConnection(identifierName, config, options);
+  static async connectSingleDatabase(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+    await DatabaseManagement.initializeConnection(identifierName, config, options);
   }
 
-  static connectMultipleDatabases(configs: DatabaseConnectionConfig[]): void {
+  static async connectMultipleDatabases(configs: DatabaseConnectionConfig[]): Promise<void> {
     for (const { identifierName, config, options } of configs) {
-      DatabaseManagement.initializeConnection(identifierName, config, options);
+      await DatabaseManagement.initializeConnection(identifierName, config, options);
     }
   }
 
