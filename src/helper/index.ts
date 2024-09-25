@@ -13,21 +13,22 @@ import {
   FieldAlias,
   PatchOptions,
   CentralFields,
-  BuildSQLConstructor
+  TableModelConstructor
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
+  QueryResult,
   ResultSetHeader,
   RowDataPacket
 } from "mysql2";
-export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
-  private tableName: string;
+export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
+  tableName: string;
   private primaryKey: PrimaryKey;
   private columns: ColumnKeys[];
   private centralFields: CentralFields;
   private queryFn?: QueryFunction;
 
-  constructor(config: BuildSQLConstructor<ColumnKeys[], PrimaryKey>) {
+  constructor(config: TableModelConstructor<ColumnKeys[], PrimaryKey>) {
     this.tableName = config.tableName;
     this.primaryKey = config.primaryKey;
     this.columns = config.columns;
@@ -72,20 +73,82 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
     return `[Table :: ${this.tableName}] :: ${message}`;
   }
 
-  private initSQLBuilder<ColumnKeys extends string, QueryReturnType>() {
-    return new SQLBuilder<ColumnKeys, QueryReturnType>(this.queryFn);
+  private removeExtraFieldsAndLog(structuredData: Record<string, any>) {
+    const removedKeys: string[] = [];
+    // Remove extra fields that are not in the columns
+    Object.keys(structuredData).forEach(key => {
+      if (!this.columns.includes(key as ColumnKeys)) {
+        removedKeys.push(key);
+        delete structuredData[key as ColumnKeys];
+      }
+    });
+
+    if (removedKeys.length > 0) {
+      logger.warn(this.printPrefixMessage(`Removed unknown fields: ${removedKeys.join(', ')}`));
+    }
+  }
+
+  initSQLBuilder<T extends ColumnKeys, QueryReturnType extends QueryResult>() {
+    return new SQLBuilder<T, QueryReturnType>(this.queryFn);
+  }
+
+  createSelect() {
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
+    return (values?: {
+      fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
+    }) => {
+      const { fields } = values || {};
+      return SQLBuild.select(fields || "*").from(this.tableName)
+    }
+  }
+
+  createUpdate(options?: UpdateOptions) {
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    return (values: {
+      data: Omit<ColumnData<ColumnKeys>, PrimaryKey>,
+      where: WhereCondition<ColumnKeys>,
+    }) => {
+      const { data = {}, where = {} } = values || {};
+      this.throwEmptyObjectError(where, this.printPrefixMessage('CreateUpdate :: Where condition cannot be empty'));
+      this.throwEmptyObjectError(data, this.printPrefixMessage('CreateUpdate :: Data cannot be empty'));
+      if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data];
+      return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
+        .where(where);
+    }
+  }
+
+  createInsert(options?: InsertOptions) {
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    return (data: ColumnData<ColumnKeys>) => {
+      this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
+      const structuredData = { ...data };
+      this.removeExtraFieldsAndLog(structuredData);
+
+      return SQLBuild.insert(this.tableName, structuredData, options);
+    }
+  }
+
+  createDelete() {
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
+    return (values: {
+      where: WhereCondition<ColumnKeys>,
+    }) => {
+      const { where } = values || {};
+      this.throwEmptyObjectError(where, this.printPrefixMessage('CreateDelete :: Where condition cannot be empty'));
+      return SQLBuild.deleteFrom(this.tableName)
+        .where(where)
+    }
   }
 
   findOne(values: {
-    fields?: (ColumnKeys | FieldAlias<ColumnKeys>)[],
+    fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
     where: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[],
   }) {
     const { where, orderBy = [], fields } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
-    const _fields = Array.isArray(fields) ? fields : "*";
-    return SQLBuild.select(_fields)
+    return SQLBuild.select(fields || "*")
       .from(this.tableName)
       .where(where)
       .orderBy(orderBy)
@@ -93,15 +156,14 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
   }
 
   findAll(values?: Prettify<{
-    fields?: (ColumnKeys | FieldAlias<ColumnKeys>)[],
+    fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
     where?: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[],
   } & LimitOffset>) {
     const { where, orderBy = [], fields, limit, offset } = values || {};
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('FindAll :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
-    const _fields = Array.isArray(fields) ? fields : "*";
-    return SQLBuild.select(_fields)
+    return SQLBuild.select(fields || "*")
       .from(this.tableName)
       .where(where as WhereCondition<ColumnKeys>)
       .orderBy(orderBy)
@@ -136,23 +198,10 @@ export class BuildSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnK
       .where(where) as QueryAction<ResultSetHeader>;
   }
 
-  create(data: ColumnData<ColumnKeys>, options?: InsertOptions) {
+  insertRecord(data: ColumnData<ColumnKeys>, options?: InsertOptions) {
     this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
     const structuredData = { ...data };
-
-    const removedKeys: string[] = [];
-    // remove extra fields that are not in the columns
-    Object.keys(structuredData).forEach(key => {
-      if (!this.columns.includes(key as ColumnKeys)) {
-        removedKeys.push(key);
-        delete structuredData[key as ColumnKeys];
-      }
-    });
-
-    if (removedKeys.length > 0) {
-      logger.warn(this.printPrefixMessage(`Create :: Removed unknown fields: ${removedKeys.join(', ')}`));
-    }
-
+    this.removeExtraFieldsAndLog(structuredData);
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.insert(this.tableName, structuredData, options);
   }
