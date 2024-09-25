@@ -13,5 +13,4 @@
 .pnp.*
 
 node_modules
-dist
 test/*
