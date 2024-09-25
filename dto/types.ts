@@ -33,7 +33,7 @@ export type SQL_CONSTRUCTORS = {
   limit: { sql: string, params: any[] },
 }
 
-export type BuildSQLConstructor<ColumnKeys, PrimaryKey> = {
+export type TableModelConstructor<ColumnKeys, PrimaryKey> = {
   tableName: string,
   primaryKey: PrimaryKey,
   columns: ColumnKeys,

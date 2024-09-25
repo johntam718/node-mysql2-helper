@@ -3,9 +3,9 @@ import mysql, {
   type ConnectionOptions,
   type Pool,
 } from 'mysql2/promise';
-import { BuildSQLConstructor, DatabaseConnectionConfig, DatabaseManagementOptions } from './types';
+import { TableModelConstructor, DatabaseConnectionConfig, DatabaseManagementOptions } from './types';
 import logger from '@lib/logger';
-import { BuildSQLModel } from '@src/helper';
+import { TableModel } from '@src/helper';
 
 // Singleton class to manage database connections
 export class DatabaseManagement {
@@ -100,8 +100,8 @@ export class DatabaseManagement {
     return DatabaseManagement.formatQuery(sql, params);
   }
 
-  createSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: BuildSQLConstructor<ColumnKeys[], PrimaryKey>) {
-    return new BuildSQLModel(BuildSQLConstructor);
+  createTableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: TableModelConstructor<ColumnKeys[], PrimaryKey>) {
+    return new TableModel(BuildSQLConstructor);
   }
 
   async createTransactionConnection() {
