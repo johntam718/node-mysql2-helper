@@ -208,7 +208,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   // For simple count query e.g. SELECT COUNT(*) FROM table
-  count(field: string = '*', alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  count(field: ColumnKeys | (string & {}) = '*', alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
     this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
     this.queryParts.select.params = field === '*' ? [] : [field];
@@ -218,25 +218,25 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  max(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  max(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT MAX(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  min(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  min(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT MIN(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  avg(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  avg(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT AVG(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;
   }
 
-  sum(field: string, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  sum(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     this.queryParts.select.sql = `SELECT SUM(??)${alias ? ` AS ??` : ''}`;
     this.queryParts.select.params = alias ? [field, alias] : [field];
     return this;

@@ -13,7 +13,8 @@ import {
   FieldAlias,
   PatchOptions,
   CentralFields,
-  TableModelConstructor
+  TableModelConstructor,
+  SelectFields
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -95,7 +96,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   createSelect() {
     const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
     return (values?: {
-      fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
+      fields?: SelectFields<ColumnKeys>,
     }) => {
       const { fields } = values || {};
       return SQLBuild.select(fields || "*").from(this.tableName)
@@ -137,6 +138,13 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
       this.throwEmptyObjectError(where, this.printPrefixMessage('CreateDelete :: Where condition cannot be empty'));
       return SQLBuild.deleteFrom(this.tableName)
         .where(where)
+    }
+  }
+
+  createCount() {
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
+    return (field: ColumnKeys | (string & {}) | "*" = '*', alias?: string) => {
+      return SQLBuild.count(field, alias).from(this.tableName);
     }
   }
 
