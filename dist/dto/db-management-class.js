@@ -22,6 +22,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -32,44 +41,42 @@ const logger_1 = __importDefault(require("../lib/logger"));
 const helper_1 = require("../src/helper");
 // Singleton class to manage database connections
 class DatabaseManagement {
-    static instances = new Map();
-    connectionName;
-    config;
-    pool;
-    verbose;
     constructor(connectionName, config, options = {}) {
+        var _a;
         this.connectionName = `[db::${connectionName}]`;
         this.config = config;
         this.pool = null;
-        this.verbose = options.verbose ?? true;
+        this.verbose = (_a = options.verbose) !== null && _a !== void 0 ? _a : true;
     }
     logVerbose(message) {
         if (this.verbose)
             logger_1.default.log(message);
     }
-    async initConnection() {
-        try {
-            this.pool = promise_1.default.createPool(this.config);
-            if (this.verbose) {
-                logger_1.default.info(`Connection pool created for ${this.connectionName}`);
+    initConnection() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                this.pool = promise_1.default.createPool(this.config);
+                if (this.verbose) {
+                    logger_1.default.info(`Connection pool created for ${this.connectionName}`);
+                }
+                // Test the connection, and release it back to the pool
+                const connection = yield this.pool.getConnection();
+                connection.release();
+                // if (this.verbose) {
+                //   logger.log(`Connection tested and released for ${this.connectionName}`);
+                // }
             }
-            // Test the connection, and release it back to the pool
-            const connection = await this.pool.getConnection();
-            connection.release();
-            // if (this.verbose) {
-            //   logger.log(`Connection tested and released for ${this.connectionName}`);
-            // }
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                logger_1.default.error(`Failed to connect database: ${error.message}`);
+            catch (error) {
+                if (error instanceof Error) {
+                    logger_1.default.error(`Failed to connect database: ${error.message}`);
+                    throw error; // Re-throw the error after logging it
+                }
+                logger_1.default.error(`Failed to connect database begin`);
+                console.log(error);
+                logger_1.default.error(`Failed to connect database end`);
                 throw error; // Re-throw the error after logging it
             }
-            logger_1.default.error(`Failed to connect database begin`);
-            console.log(error);
-            logger_1.default.error(`Failed to connect database end`);
-            throw error; // Re-throw the error after logging it
-        }
+        });
     }
     static initializeConnection(identifierName, config, options) {
         if (!DatabaseManagement.instances.has(identifierName)) {
@@ -117,76 +124,83 @@ class DatabaseManagement {
     createTableModel(BuildSQLConstructor) {
         return new helper_1.TableModel(BuildSQLConstructor);
     }
-    async createTransactionConnection() {
-        if (!this.pool) {
-            throw new Error('Connection pool has not been initialized.');
-        }
-        const connection = await this.pool.getConnection();
-        this.logVerbose(`${this.connectionName} :: transaction :: connection created`);
-        await connection.beginTransaction();
-        this.logVerbose(`${this.connectionName} :: transaction :: transaction started`);
-        return {
-            query: async (sql, params) => {
-                this.logVerbose(`${this.connectionName} :: query :: stmt >> ${this.formatQuery(sql, params)}`);
-                const [result, mysqlFieldMetaData] = await connection.query(sql, params);
-                return result;
-            },
-            commit: async (release = false) => {
-                try {
-                    this.logVerbose(`${this.connectionName} :: transaction :: committing`);
-                    await connection.commit();
-                }
-                finally {
-                    if (release) {
-                        this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
-                        connection.release();
+    createTransactionConnection() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.pool) {
+                throw new Error('Connection pool has not been initialized.');
+            }
+            const connection = yield this.pool.getConnection();
+            this.logVerbose(`${this.connectionName} :: transaction :: connection created`);
+            yield connection.beginTransaction();
+            this.logVerbose(`${this.connectionName} :: transaction :: transaction started`);
+            return {
+                query: (sql, params) => __awaiter(this, void 0, void 0, function* () {
+                    this.logVerbose(`${this.connectionName} :: query :: stmt >> ${this.formatQuery(sql, params)}`);
+                    const [result, mysqlFieldMetaData] = yield connection.query(sql, params);
+                    return result;
+                }),
+                commit: (...args_1) => __awaiter(this, [...args_1], void 0, function* (release = false) {
+                    try {
+                        this.logVerbose(`${this.connectionName} :: transaction :: committing`);
+                        yield connection.commit();
                     }
-                }
-            },
-            rollback: async (release = false) => {
-                try {
-                    this.logVerbose(`${this.connectionName} :: transaction :: rolling back`);
-                    await connection.rollback();
-                }
-                finally {
-                    if (release) {
-                        this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
-                        connection.release();
+                    finally {
+                        if (release) {
+                            this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
+                            connection.release();
+                        }
                     }
-                }
-            },
-            release: () => {
-                this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
-                connection.release();
-            },
-        };
+                }),
+                rollback: (...args_1) => __awaiter(this, [...args_1], void 0, function* (release = false) {
+                    try {
+                        this.logVerbose(`${this.connectionName} :: transaction :: rolling back`);
+                        yield connection.rollback();
+                    }
+                    finally {
+                        if (release) {
+                            this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
+                            connection.release();
+                        }
+                    }
+                }),
+                release: () => {
+                    this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
+                    connection.release();
+                },
+            };
+        });
     }
-    async destroy() {
-        if (this.pool) {
-            await this.pool.end();
-            DatabaseManagement.instances.delete(this.connectionName);
-            logger_1.default.log(`Database connection <${this.connectionName}> has been destroyed.`);
-        }
-        else {
-            throw new Error('Connection pool has not been initialized.');
-        }
+    destroy() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.pool) {
+                yield this.pool.end();
+                DatabaseManagement.instances.delete(this.connectionName);
+                logger_1.default.log(`Database connection <${this.connectionName}> has been destroyed.`);
+            }
+            else {
+                throw new Error('Connection pool has not been initialized.');
+            }
+        });
     }
-    async executeQuery(sql, params) {
-        // Log the constructed SQL query and parameters
-        // if (this.verbose) {
-        //   console.log('Output SQL:', sql);
-        //   console.log('With parameters:', params);
-        // }
-        // Use mysql2 to format the query with parameters
-        const formattedQuery = this.formatQuery(sql, params);
-        this.logVerbose(`${this.connectionName} :: query :: stmt >> ${formattedQuery}`);
-        if (!this.pool) {
-            throw new Error('Connection pool is not initialized.');
-        }
-        const connection = await this.pool.getConnection();
-        const [result, mysqlFieldMetaData] = await connection.query(sql, params);
-        connection.release();
-        return result;
+    executeQuery(sql, params) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // Log the constructed SQL query and parameters
+            // if (this.verbose) {
+            //   console.log('Output SQL:', sql);
+            //   console.log('With parameters:', params);
+            // }
+            // Use mysql2 to format the query with parameters
+            const formattedQuery = this.formatQuery(sql, params);
+            this.logVerbose(`${this.connectionName} :: query :: stmt >> ${formattedQuery}`);
+            if (!this.pool) {
+                throw new Error('Connection pool is not initialized.');
+            }
+            const connection = yield this.pool.getConnection();
+            const [result, mysqlFieldMetaData] = yield connection.query(sql, params);
+            connection.release();
+            return result;
+        });
     }
 }
 exports.DatabaseManagement = DatabaseManagement;
+DatabaseManagement.instances = new Map();

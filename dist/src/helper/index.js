@@ -7,11 +7,6 @@ exports.TableModel = void 0;
 const sql_builder_class_1 = require("../../dto/sql-builder-class");
 const logger_1 = __importDefault(require("../../lib/logger"));
 class TableModel {
-    tableName;
-    primaryKey;
-    columns;
-    centralFields;
-    queryFn;
     constructor(config) {
         this.tableName = config.tableName;
         this.primaryKey = config.primaryKey;
@@ -23,10 +18,7 @@ class TableModel {
             isDeletedField: 'is_deleted',
             statusField: 'status'
         };
-        this.centralFields = {
-            ...defaultCentralFields,
-            ...(config?.centralFields || {})
-        };
+        this.centralFields = Object.assign(Object.assign({}, defaultCentralFields), ((config === null || config === void 0 ? void 0 : config.centralFields) || {}));
         this.queryFn = config.queryFn;
         this.checkConfig();
     }
@@ -91,7 +83,7 @@ class TableModel {
         const SQLBuild = this.initSQLBuilder();
         return (data) => {
             this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
-            const structuredData = { ...data };
+            const structuredData = Object.assign({}, data);
             this.removeExtraFieldsAndLog(structuredData);
             return SQLBuild.insert(this.tableName, structuredData, options);
         };
@@ -154,7 +146,7 @@ class TableModel {
     }
     insertRecord(data, options) {
         this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
-        const structuredData = { ...data };
+        const structuredData = Object.assign({}, data);
         this.removeExtraFieldsAndLog(structuredData);
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.insert(this.tableName, structuredData, options);
@@ -190,7 +182,7 @@ class TableModel {
         const { where, value, options } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDeleteOne :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
-        const data = { [options?.deleteField || this.centralFields.isDeletedField]: value };
+        const data = { [(options === null || options === void 0 ? void 0 : options.deleteField) || this.centralFields.isDeletedField]: value };
         return SQLBuild.update(this.tableName, data, options)
             .where(where)
             .limit(1);
@@ -199,7 +191,7 @@ class TableModel {
         const { where, value, options } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDelete :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
-        const data = { [options?.deleteField || this.centralFields.isDeletedField]: value };
+        const data = { [(options === null || options === void 0 ? void 0 : options.deleteField) || this.centralFields.isDeletedField]: value };
         return SQLBuild.update(this.tableName, data, options)
             .where(where);
     }

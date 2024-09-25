@@ -24,6 +24,7 @@
   },
   "files": [
     "dist",
+    "jsconfig.json",
     "tsconfig.json"
   ],
   "packageManager": "yarn@3.2.0"

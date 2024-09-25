@@ -2,8 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SQLBuilder = void 0;
 class SQLBuilder {
-    queryParts;
-    queryFn;
     constructor(queryFn) {
         this.queryParts = {
             count: { sql: "", params: [] },
@@ -279,7 +277,7 @@ class SQLBuilder {
             }
         }
         // Avoid updating the primary key
-        if ((primaryKey && values) && values?.[primaryKey]) {
+        if ((primaryKey && values) && (values === null || values === void 0 ? void 0 : values[primaryKey])) {
             delete values[primaryKey];
         }
         this.queryParts.update.sql = `UPDATE ??`;
@@ -311,8 +309,8 @@ class SQLBuilder {
         const columnPlaceholders = columns.map(() => '??').join(', '); // e.g. 'name, email, password'
         const valueParams = Object.values(values); // e.g. ['John Doe', '
         const columnParams = columns;
-        let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES (${placeholders})`;
-        if (options?.onDuplicateKeyUpdate) {
+        let insertClause = `INSERT ${(options === null || options === void 0 ? void 0 : options.insertIgnore) ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES (${placeholders})`;
+        if (options === null || options === void 0 ? void 0 : options.onDuplicateKeyUpdate) {
             const updateColumns = Object.keys(options.onDuplicateKeyUpdate).map(key => '?? = ?').join(', ');
             const updateParams = Object.entries(options.onDuplicateKeyUpdate).flatMap(([key, value]) => [key, value]);
             insertClause += ` ON DUPLICATE KEY UPDATE ${updateColumns}`;
