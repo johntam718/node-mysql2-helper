@@ -27,6 +27,7 @@
     "dto/**/*",
     "lib/**/*",
     "test/**/*",
+    "index.ts"
   ],
   "exclude": [
     "node_modules",

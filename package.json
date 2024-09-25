@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A simple MySQL helper for Node.js",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "main": "dist/index.js",
     "start": "tsx src/index.ts",
