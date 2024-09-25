@@ -1,4 +1,5 @@
 import mysql, {
+  format,
   type ConnectionOptions,
   type Pool,
 } from 'mysql2/promise';
@@ -19,6 +20,10 @@ export class DatabaseManagement {
     this.config = config;
     this.pool = null;
     this.verbose = options.verbose ?? true;
+  }
+
+  private logVerbose(message: string) {
+    if (this.verbose) logger.log(message);
   }
 
   private async initConnection() {
@@ -46,11 +51,10 @@ export class DatabaseManagement {
     }
   }
 
-  static initSingleDatabaseConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+  private static initializeConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
     if (!DatabaseManagement.instances.has(identifierName)) {
       try {
         const instance = new DatabaseManagement(identifierName, config, options);
-
         instance.initConnection(); // Initialize the connection
         logger.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
         DatabaseManagement.instances.set(identifierName, instance);
@@ -61,19 +65,13 @@ export class DatabaseManagement {
     }
   }
 
-  static initMultipleDatabaseConnection(configs: DatabaseConnectionConfig[]): void {
+  static connectSingleDatabase(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+    DatabaseManagement.initializeConnection(identifierName, config, options);
+  }
+
+  static connectMultipleDatabases(configs: DatabaseConnectionConfig[]): void {
     for (const { identifierName, config, options } of configs) {
-      if (!DatabaseManagement.instances.has(identifierName)) {
-        try {
-          const instance = new DatabaseManagement(identifierName, config, options);
-          instance.initConnection(); // Initialize the connection
-          logger.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
-          DatabaseManagement.instances.set(identifierName, instance);
-        } catch (error) {
-          console.error(`Failed to initialize database connection for identifier ${identifierName}:`, error);
-          throw error; // Re-throw the error after logging it
-        }
-      }
+      DatabaseManagement.initializeConnection(identifierName, config, options);
     }
   }
 
@@ -94,6 +92,14 @@ export class DatabaseManagement {
     return DatabaseManagement.instances;
   }
 
+  static formatQuery(sql: string, params?: any[]) {
+    return format(sql, params);
+  }
+
+  formatQuery(sql: string, params?: any[]) {
+    return DatabaseManagement.formatQuery(sql, params);
+  }
+
   createSQLModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: BuildSQLConstructor<ColumnKeys[], PrimaryKey>) {
     return new BuildSQLModel(BuildSQLConstructor);
   }
@@ -104,32 +110,40 @@ export class DatabaseManagement {
     }
 
     const connection = await this.pool.getConnection();
+    this.logVerbose(`${this.connectionName} :: transaction :: connection created`);
     await connection.beginTransaction();
+    this.logVerbose(`${this.connectionName} :: transaction :: transaction started`);
 
     return {
       query: async (sql: string, params?: any[]) => {
+        this.logVerbose(`${this.connectionName} :: query :: stmt >> ${this.formatQuery(sql, params)}`);
         const [result, mysqlFieldMetaData] = await connection.query(sql, params);
         return result;
       },
       commit: async (release: boolean = false) => {
         try {
+          this.logVerbose(`${this.connectionName} :: transaction :: committing`);
           await connection.commit();
         } finally {
           if (release) {
+            this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
             connection.release();
           }
         }
       },
       rollback: async (release: boolean = false) => {
         try {
+          this.logVerbose(`${this.connectionName} :: transaction :: rolling back`);
           await connection.rollback();
         } finally {
           if (release) {
+            this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
             connection.release();
           }
         }
       },
       release: () => {
+        this.logVerbose(`${this.connectionName} :: transaction :: connection released`);
         connection.release();
       },
     }
@@ -153,15 +167,8 @@ export class DatabaseManagement {
     // }
 
     // Use mysql2 to format the query with parameters
-    const formattedQuery = mysql.format(sql, params);
-
-
-    // Log the constructed SQL query and parameters
-    if (this.verbose) {
-      // console.log('Executing SQL:', formattedQuery);
-      logger.log(`${this.connectionName} :: query :: stmt >> ${formattedQuery}`);
-
-    }
+    const formattedQuery = this.formatQuery(sql, params);
+    this.logVerbose(`${this.connectionName} :: query :: stmt >> ${formattedQuery}`);
 
     if (!this.pool) {
       throw new Error('Connection pool is not initialized.');
