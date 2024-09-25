@@ -3,3 +3,4 @@ export declare function createWhereCondition<T extends string>(conditions: Where
 export declare function createOrderBy<T extends string>(fields: OrderByField<T>[]): OrderByField<T>[];
 export declare function createColumns<T extends string>(columns: T[]): T[];
 export declare function createFieldAlias<T extends string>(fieldObj: FieldAlias<T>): FieldAlias<T>;
+//# sourceMappingURL=helper.d.ts.map

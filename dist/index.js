@@ -17,3 +17,4 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./src/database-management"), exports);
 __exportStar(require("./src/helper"), exports);
 __exportStar(require("./src/sql-builder"), exports);
+//# sourceMappingURL=index.js.map

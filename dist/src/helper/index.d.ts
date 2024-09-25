@@ -71,3 +71,4 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         options?: SoftDeleteOptions;
     }): QueryAction<ResultSetHeader>;
 }
+//# sourceMappingURL=index.d.ts.map

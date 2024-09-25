@@ -19,3 +19,4 @@ function createColumns(columns) {
 function createFieldAlias(fieldObj) {
     return fieldObj;
 }
+//# sourceMappingURL=helper.js.map

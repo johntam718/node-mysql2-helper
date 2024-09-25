@@ -190,3 +190,4 @@ class DatabaseManagement {
     }
 }
 exports.DatabaseManagement = DatabaseManagement;
+//# sourceMappingURL=db-management-class.js.map

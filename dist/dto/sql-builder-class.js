@@ -389,3 +389,4 @@ class SQLBuilder {
     }
 }
 exports.SQLBuilder = SQLBuilder;
+//# sourceMappingURL=sql-builder-class.js.map

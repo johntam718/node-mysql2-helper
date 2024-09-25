@@ -39,3 +39,4 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     };
     executeQuery<T = QueryReturnType>(): Promise<T>;
 }
+//# sourceMappingURL=sql-builder-class.d.ts.map

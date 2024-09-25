@@ -27,3 +27,4 @@ export declare class DatabaseManagement {
     destroy(): Promise<void>;
     executeQuery<T = any>(sql: string, params?: any[]): Promise<T>;
 }
+//# sourceMappingURL=db-management-class.d.ts.map

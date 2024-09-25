@@ -57,3 +57,4 @@ loglevel_1.default.methodFactory = (methodName, logLevel, loggerName) => {
 // Apply the method factory
 loglevel_1.default.rebuild();
 exports.default = loglevel_1.default;
+//# sourceMappingURL=logger.js.map
