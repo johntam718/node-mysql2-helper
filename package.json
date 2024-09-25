@@ -23,10 +23,5 @@
     "tsx": "4.6.2",
     "typescript": "^5.5.4"
   },
-  "files": [
-    "dist",
-    "jsconfig.json",
-    "tsconfig.json"
-  ],
   "packageManager": "yarn@3.2.0"
 }
