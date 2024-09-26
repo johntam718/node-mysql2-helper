@@ -26,7 +26,7 @@ export class DatabaseManagement {
     if (this.verbose) logger.log(message);
   }
 
-  private async initConnection() {
+  private initConnection() {
     try {
       this.pool = mysql.createPool(this.config);
       if (this.verbose) {
@@ -34,8 +34,8 @@ export class DatabaseManagement {
       }
 
       // Test the connection, and release it back to the pool
-      const connection = await this.pool.getConnection();
-      connection.release();
+      // const connection = await this.pool.getConnection();
+      // connection.release();
       // if (this.verbose) {
       //   logger.log(`Connection tested and released for ${this.connectionName}`);
       // }
@@ -51,11 +51,11 @@ export class DatabaseManagement {
     }
   }
 
-  private static async initializeConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+  private static initializeConnection(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
     if (!DatabaseManagement.instances.has(identifierName)) {
       try {
         const instance = new DatabaseManagement(identifierName, config, options);
-        await instance.initConnection(); // Initialize the connection
+        instance.initConnection(); // Initialize the connection
         logger.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
         DatabaseManagement.instances.set(identifierName, instance);
       } catch (error) {
@@ -65,13 +65,13 @@ export class DatabaseManagement {
     }
   }
 
-  static async connectSingleDatabase(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
-    await DatabaseManagement.initializeConnection(identifierName, config, options);
+  static connectSingleDatabase(identifierName: string, config: ConnectionOptions, options?: DatabaseManagementOptions) {
+    DatabaseManagement.initializeConnection(identifierName, config, options);
   }
 
-  static async connectMultipleDatabases(configs: DatabaseConnectionConfig[]): Promise<void> {
+  static connectMultipleDatabases(configs: DatabaseConnectionConfig[]) {
     for (const { identifierName, config, options } of configs) {
-      await DatabaseManagement.initializeConnection(identifierName, config, options);
+      DatabaseManagement.initializeConnection(identifierName, config, options);
     }
   }
 
