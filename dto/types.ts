@@ -56,6 +56,7 @@ export type GroupByField<T> = T | (string & {}) | T[];
 
 export type ColumnData<T extends string> = Partial<Record<T, any>>;
 
+export type InsertValue<T extends string> = ColumnData<T> | ColumnData<T>[];
 export type InsertOptions = {
   insertIgnore?: boolean;
   onDuplicateKeyUpdate?: ObjectValues;

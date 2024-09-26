@@ -7,6 +7,7 @@ import {
   GroupByQueryBuilder,
   InsertOptions,
   InsertQueryBuilder,
+  InsertValue,
   JoinQueryBuilder,
   JoinType,
   LimitQueryBuilder,
@@ -381,7 +382,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  insert(table: string, values: ColumnData<ColumnKeys>, options?: InsertOptions): InsertQueryBuilder<QueryReturnType> {
+  insert(table: string, values: InsertValue<ColumnKeys>, options?: InsertOptions): InsertQueryBuilder<QueryReturnType> {
     this.checkTableName(table, 'insert');
     const {
       enableTimestamps = false,
@@ -390,18 +391,31 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
       ctimeValue = this.getCurrentUnixTimestamp(),
       utimeValue = this.getCurrentUnixTimestamp(),
     } = options || {};
-    if (enableTimestamps) {
-      (values as Record<string, any>)[ctimeField] = ctimeValue;
-      (values as Record<string, any>)[utimeField] = utimeValue;
+
+    const isMultipleInsert = Array.isArray(values);
+    const rows = isMultipleInsert ? values : [values];
+
+    if (isMultipleInsert && rows.length === 0) {
+      throw new Error(this.printPrefixMessage('Insert :: Values cannot be empty'));
     }
 
-    const columns = Object.keys(values); // e.g. ['name', 'email', 'password']
+    if (enableTimestamps) {
+      rows.forEach((row) => {
+        (row as Record<string, any>)[ctimeField] = ctimeValue;
+        (row as Record<string, any>)[utimeField] = utimeValue;
+      });
+    }
+
+    console.log(rows);
+    const columns = Object.keys(rows[0]); // e.g. ['name', 'email', 'password']
     const placeholders = columns.map(() => '?').join(', '); // e.g. '?, ?, ?'
     const columnPlaceholders = columns.map(() => '??').join(', '); // e.g. 'name, email, password'
-    const valueParams = Object.values(values); // e.g. ['John Doe', '
+    const valueParams = rows.flatMap(row => Object.values(row)); // e.g. ['doe', 'doe@gmail.com', 'password']
     const columnParams = columns;
 
-    let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES (${placeholders})`;
+    const valuesPlaceholders = rows.map(() => `(${placeholders})`).join(', '); // e.g. '(?, ?, ?), (?, ?, ?)'
+
+    let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES ${valuesPlaceholders}`;
 
     if (options?.onDuplicateKeyUpdate) {
       const updateColumns = Object.keys(options.onDuplicateKeyUpdate).map(key => '?? = ?').join(', ');

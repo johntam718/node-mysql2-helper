@@ -14,7 +14,8 @@ import {
   PatchOptions,
   CentralFields,
   TableModelConstructor,
-  SelectFields
+  SelectFields,
+  InsertValue
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -70,11 +71,24 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     }
   }
 
+  private throwEmptyArrayError(arr: any[], message?: string) {
+    if (arr.length === 0) {
+      throw new Error(message || 'Array cannot be empty');
+    }
+  }
+
   private printPrefixMessage(message: string) {
     return `[Table :: ${this.tableName}] :: ${message}`;
   }
 
-  private removeExtraFieldsAndLog(structuredData: Record<string, any>) {
+  private removeExtraFieldsAndLog(structuredData: InsertValue<ColumnKeys> & { [key: string]: any }, index?: number) {
+    if (Array.isArray(structuredData)) {
+      structuredData.forEach((data, index) => {
+        this.removeExtraFieldsAndLog(data, index);
+      });
+      return;
+    }
+
     const removedKeys: string[] = [];
     // Remove extra fields that are not in the columns
     Object.keys(structuredData).forEach(key => {
@@ -85,7 +99,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     });
 
     if (removedKeys.length > 0) {
-      logger.warn(this.printPrefixMessage(`Removed unknown fields: ${removedKeys.join(', ')}`));
+      logger.warn(this.printPrefixMessage(`Removed unknown fields: ${removedKeys.join(', ')} from data[${index}]`));
     }
   }
 
@@ -206,9 +220,13 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
       .where(where) as QueryAction<ResultSetHeader>;
   }
 
-  insertRecord(data: ColumnData<ColumnKeys>, options?: InsertOptions) {
-    this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
-    const structuredData = { ...data };
+  insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions) {
+    if (Array.isArray(data)) {
+      this.throwEmptyArrayError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+    } else {
+      this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+    }
+    const structuredData = Array.isArray(data) ? data : [data];
     this.removeExtraFieldsAndLog(structuredData);
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.insert(this.tableName, structuredData, options);
