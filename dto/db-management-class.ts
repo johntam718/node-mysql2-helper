@@ -10,10 +10,10 @@ import { TableModel } from '@src/table-model';
 // Singleton class to manage database connections
 export class DatabaseManagement {
   private static instances: Map<string, DatabaseManagement> = new Map();
+  private config: ConnectionOptions
+  private verbose: boolean;
   connectionName: string;
-  config: ConnectionOptions
   pool: Pool | null;
-  verbose: boolean;
 
   constructor(connectionName: string, config: ConnectionOptions, options: DatabaseManagementOptions = {}) {
     this.connectionName = `[db::${connectionName}]`;
@@ -120,7 +120,8 @@ export class DatabaseManagement {
         const [result, mysqlFieldMetaData] = await connection.query(sql, params);
         return result;
       },
-      commit: async (release: boolean = false) => {
+      commit: async (options: { release: boolean }) => {
+        const { release = false } = options || {};
         try {
           this.logVerbose(`${this.connectionName} :: transaction :: committing`);
           await connection.commit();
@@ -131,7 +132,8 @@ export class DatabaseManagement {
           }
         }
       },
-      rollback: async (release: boolean = false) => {
+      rollback: async (options: { release: boolean }) => {
+        const { release = false } = options || {};
         try {
           this.logVerbose(`${this.connectionName} :: transaction :: rolling back`);
           await connection.rollback();
