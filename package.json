@@ -1,7 +1,7 @@
 {
-  "name": "node-mysql-helper",
+  "name": "node-mysql-query-utils",
   "version": "1.0.0",
-  "description": "A simple MySQL helper for Node.js",
+  "description": "A simple MySQL query utils for Node.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

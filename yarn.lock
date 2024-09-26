@@ -1187,9 +1187,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-mysql-helper@workspace:.":
+"node-mysql-query-utils@workspace:.":
   version: 0.0.0-use.local
-  resolution: "node-mysql-helper@workspace:."
+  resolution: "node-mysql-query-utils@workspace:."
   dependencies:
     "@types/node": ^22.4.1
     chalk: ^4.1.2
