@@ -16,6 +16,7 @@ function createOrderBy(fields) {
 function createColumns(columns) {
     return columns;
 }
+// Helper function to create field alias
 function createFieldAlias(fieldObj) {
     return fieldObj;
 }

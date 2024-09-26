@@ -17,7 +17,7 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     min(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
     avg(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
     sum(field: ColumnKeys, alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
-    select(fields: SelectFields<ColumnKeys>): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
+    select(fields?: SelectFields<ColumnKeys>): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
     from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType>;
     join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
     join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;

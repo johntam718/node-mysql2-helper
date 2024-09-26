@@ -5,7 +5,7 @@ import mysql, {
 } from 'mysql2/promise';
 import { TableModelConstructor, DatabaseConnectionConfig, DatabaseManagementOptions } from './types';
 import logger from '@lib/logger';
-import { TableModel } from '@src/helper';
+import { TableModel } from '@src/table-model';
 
 // Singleton class to manage database connections
 export class DatabaseManagement {

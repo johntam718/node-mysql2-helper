@@ -194,7 +194,7 @@ class SQLBuilder {
         this.queryParts.select.params = alias ? [field, alias] : [field];
         return this;
     }
-    select(fields) {
+    select(fields = "*") {
         const _fields = Array.isArray(fields) ? this.uniqueFields(fields) : fields;
         const { sql, params } = this.processFields(_fields);
         this.queryParts.select.sql = sql;

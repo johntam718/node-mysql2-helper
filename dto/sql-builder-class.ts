@@ -242,7 +242,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
     return this;
   }
 
-  select(fields: SelectFields<ColumnKeys>): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
+  select(fields: SelectFields<ColumnKeys> = "*"): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     const _fields = Array.isArray(fields) ? this.uniqueFields<ColumnKeys>(fields) : fields;
     const { sql, params } = this.processFields<ColumnKeys>(_fields);
     this.queryParts.select.sql = sql;

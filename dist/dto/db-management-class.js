@@ -29,7 +29,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseManagement = void 0;
 const promise_1 = __importStar(require("mysql2/promise"));
 const logger_1 = __importDefault(require("../lib/logger"));
-const helper_1 = require("../src/helper");
+const table_model_1 = require("../src/table-model");
 // Singleton class to manage database connections
 class DatabaseManagement {
     static instances = new Map();
@@ -115,7 +115,7 @@ class DatabaseManagement {
         return DatabaseManagement.formatQuery(sql, params);
     }
     createTableModel(BuildSQLConstructor) {
-        return new helper_1.TableModel(BuildSQLConstructor);
+        return new table_model_1.TableModel(BuildSQLConstructor);
     }
     async createTransactionConnection() {
         if (!this.pool) {

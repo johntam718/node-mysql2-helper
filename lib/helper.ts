@@ -15,6 +15,7 @@ export function createColumns<T extends string>(columns: T[]): T[] {
   return columns;
 }
 
+// Helper function to create field alias
 export function createFieldAlias<T extends string>(fieldObj: FieldAlias<T>): FieldAlias<T> {
   return fieldObj;
 }

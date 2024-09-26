@@ -1,6 +1,6 @@
 import mysql, { type ConnectionOptions, type Pool } from 'mysql2/promise';
 import { TableModelConstructor, DatabaseConnectionConfig, DatabaseManagementOptions } from './types';
-import { TableModel } from '../src/helper';
+import { TableModel } from '../src/table-model';
 export declare class DatabaseManagement {
     private static instances;
     connectionName: string;
