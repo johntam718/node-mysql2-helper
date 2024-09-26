@@ -3,6 +3,7 @@
 A MySQL query builder and helper for Node.js, written in TypeScript.
 
 [![npm version](https://badge.fury.io/js/node-mysql-query-utils.svg)](https://badge.fury.io/js/node-mysql-query-utils)
+
 <!-- [![npm downloads](https://img.shields.io/npm/dm/node-mysql-query-utils.svg)](https://www.npmjs.com/package/node-mysql-query-utils) -->
 
 ## Installation
@@ -28,69 +29,65 @@ The **`DatabaseManagement`** class is a singleton class that helps manage databa
 Single database connection
 
 ```typescript
-import { DatabaseManagement } from 'node-mysql-query-utils';
-import { ConnectionOptions } from 'mysql2/promise';
+import { DatabaseManagement } from "node-mysql-query-utils";
+import { ConnectionOptions } from "mysql2/promise";
 
 // Define connection configurations
 const config: ConnectionOptions = {
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'test_db'
+  host: "localhost",
+  user: "root",
+  password: "password",
+  database: "test_db",
 };
 
 // Connect to a single database
-DatabaseManagement.connectSingleDatabase('mainDB', config);
+DatabaseManagement.connectSingleDatabase("mainDB", config);
 
 // Retrieve the instance and use it to perform database operations
-const dbInstance = DatabaseManagement.getInstance('mainDB');
-
+const dbInstance = DatabaseManagement.getInstance("mainDB");
 ```
 
 Multiple database connections
 
 ```typescript
-import { DatabaseManagement } from 'node-mysql-query-utils';
-import { type DatabaseConnectionConfig } from 'node-mysql-query-utils/dist/dto/types';
+import { DatabaseManagement } from "node-mysql-query-utils";
+import { type DatabaseConnectionConfig } from "node-mysql-query-utils/dist/dto/types";
 
 // Define multiple connection configurations
-const configs: DatabaseConnectionConfig[]  = [
+const configs: DatabaseConnectionConfig[] = [
   {
-    identifierName: 'mainDB',
+    identifierName: "mainDB",
     config: {
-      host: 'localhost',
-      user: 'root',
-      password: 'password',
-      database: 'main_db'
-    }
+      host: "localhost",
+      user: "root",
+      password: "password",
+      database: "main_db",
+    },
   },
   {
-    identifierName: 'analyticsDB',
+    identifierName: "analyticsDB",
     config: {
-      host: 'localhost',
-      user: 'root',
-      password: 'password',
-      database: 'analytics_db'
-    }
-  }
+      host: "localhost",
+      user: "root",
+      password: "password",
+      database: "analytics_db",
+    },
+  },
 ];
 
 // Connect to multiple databases
 DatabaseManagement.connectMultipleDatabases(configs);
 
 // Retrieve instances and use them to perform database operations
-const mainDBInstance = DatabaseManagement.getInstance('mainDB');
-const analyticsDBInstance = DatabaseManagement.getInstance('analyticsDB');
-
+const mainDBInstance = DatabaseManagement.getInstance("mainDB");
+const analyticsDBInstance = DatabaseManagement.getInstance("analyticsDB");
 ```
-
 
 ### Summary
 
 - **Example**: Shows how to connect to a single database and retrieve the instance.
 - **Connecting to Multiple Databases**: Demonstrates how to connect to multiple databases and retrieve their instances.
 - **API**: Documents the main methods of the [`DatabaseManagement`] class.
-
 
 ### Table Model
 
@@ -99,28 +96,32 @@ The **`TableModel`** class provides a way to build a table model from a JSON obj
 #### Example
 
 ```typescript
-import { DatabaseManagement, TableModel, sqlHelper } from 'node-mysql-query-utils';
+import {
+  DatabaseManagement,
+  TableModel,
+  sqlHelper,
+} from "node-mysql-query-utils";
 
 // Connected to a database
-const dbInstance = DatabaseManagement.getInstance('mainDB');
+const dbInstance = DatabaseManagement.getInstance("mainDB");
 
 // Define the columns of the table
 const columns = sqlHelper.createColumns([
-  'user_id',
-  'ctime',
-  'utime',
-  'email',
-  'mobile',
-  'password',
-  'is_active',
-  'is_deleted',
+  "user_id",
+  "ctime",
+  "utime",
+  "email",
+  "mobile",
+  "password",
+  "is_active",
+  "is_deleted",
 ]);
 
 // E.g. Create a table model for a user table
 // Define the table model by using the DatabaseManagement instance
 const userAccountModel = master.createTableModel({
-  tableName: 'user_account',
-  primaryKey: 'user_id',
+  tableName: "user_account",
+  primaryKey: "user_id",
   columns,
 });
 
@@ -128,10 +129,10 @@ const userAccountModel = master.createTableModel({
 
 // Define the table model by using the TableModel class directly
 const userAccountModel = new TableModel({
-  tableName: 'user_account',
-  primaryKey: 'user_id',
+  tableName: "user_account",
+  primaryKey: "user_id",
   columns,
-  queryFn: db.query.bind(db) // Optional: put your own query function here if you don't connect DB by DatabaseManagement class
+  queryFn: db.query.bind(db), // Optional: put your own query function here if you don't connect DB by DatabaseManagement class
 });
 ```
 
@@ -148,7 +149,6 @@ type QueryFunction = <T>(sql: string, params?: any[]) => Promise<T>;
 - **Example**: Shows how to create a table model for a user table.
 - **API**: Documents the main methods of the [`TableModel`] class.
 
-
 ### SQL Builder
 
 The **`SQLBuilder`** class provides a way to build SQL queries for CRUD operations.
@@ -156,51 +156,57 @@ The **`SQLBuilder`** class provides a way to build SQL queries for CRUD operatio
 #### Example
 
 ```typescript
-import { SQLBuilder } from 'node-mysql-query-utils';
+import { SQLBuilder } from "node-mysql-query-utils";
 
 // Define the table name
-const tableName = 'user_account';
+const tableName = "user_account";
 
 // Create an instance of the SQLBuilder class
 const sqlBuilder = new SQLBuilder();
+// Accept QueryFunction for SQLBuilder to enable query execution
+const sqlBuilder = new SQLBuilder(db.query.bind(db));
 
 // Call buildQuery to get the SQL query and parameters
 const { sql, params } = sqlBuilder.select().from(tableName).buildQuery();
 // Can also use array destructuring
 const [sql, params] = sqlBuilder.select().from(tableName).buildQuery();
-
 ```
+
 ### .select() Method
 
 ```typescript
 // Select all columns, default is '*'
 const [sql, params] = sqlBuilder.select().from(tableName).buildQuery();
-const [sql, params] = sqlBuilder.select('*').from(tableName).buildQuery();
+const [sql, params] = sqlBuilder.select("*").from(tableName).buildQuery();
 
 // Select specific columns
-const [sql, params] = sqlBuilder.select(['user_id', 'email'])
+const [sql, params] = sqlBuilder
+  .select(["user_id", "email"])
   .from(tableName)
   .buildQuery();
 
 // Select columns with aliases
 const [sql, params] = sqlBuilder
-  .select([{ user_id: 'id', mobile: 'user_mobile' }, { email: 'user_email' }])
+  .select([{ user_id: "id", mobile: "user_mobile" }, { email: "user_email" }])
   .from(tableName)
   .buildQuery();
 
 // Select a single column
-const [sql, params] = sqlBuilder.select('user_id').from(tableName).buildQuery();
+const [sql, params] = sqlBuilder.select("user_id").from(tableName).buildQuery();
 ```
 
 ### .from() Method
 
 ```typescript
 // No alias
-const [sql, params] = sqlBuilder.select().from('user_account').buildQuery();
+const [sql, params] = sqlBuilder.select().from("user_account").buildQuery();
 
 // alias example
-const [sql, params] = sqlBuilder.select().from('user_account', 'u').buildQuery();
-const [sql, params] = sqlBuilder.select().from('user_account u',).buildQuery();
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account", "u")
+  .buildQuery();
+const [sql, params] = sqlBuilder.select().from("user_account u").buildQuery();
 ```
 
 ### .join() Method
@@ -209,22 +215,37 @@ const [sql, params] = sqlBuilder.select().from('user_account u',).buildQuery();
 // Inner join
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account', 'u')
-  .join('INNER', 'user_profile_pic', 'up', 'u.user_profile_pic_id = up.user_profile_pic_id')
+  .from("user_account", "u")
+  .join(
+    "INNER",
+    "user_profile_pic",
+    "up",
+    "u.user_profile_pic_id = up.user_profile_pic_id"
+  )
   .buildQuery();
 
 // Left join
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account', 'u')
-  .join('LEFT', 'user_profile_pic', 'up', 'u.user_profile_pic_id = up.user_profile_pic_id')
+  .from("user_account", "u")
+  .join(
+    "LEFT",
+    "user_profile_pic",
+    "up",
+    "u.user_profile_pic_id = up.user_profile_pic_id"
+  )
   .buildQuery();
 
 // Right join
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account', 'u')
-  .join('RIGHT', 'user_profile_pic', 'up', 'u.user_profile_pic_id = up.user_profile_pic_id')
+  .from("user_account", "u")
+  .join(
+    "RIGHT",
+    "user_profile_pic",
+    "up",
+    "u.user_profile_pic_id = up.user_profile_pic_id"
+  )
   .buildQuery();
 ```
 
@@ -234,8 +255,12 @@ Only provide third argument if no alias is needed
 // Inner join
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account', 'u')
-  .join('INNER', 'user_profile_pic', 'u.user_profile_pic_id = up.user_profile_pic_id')
+  .from("user_account", "u")
+  .join(
+    "INNER",
+    "user_profile_pic",
+    "u.user_profile_pic_id = user_profile_pic.user_profile_pic_id"
+  )
   .buildQuery();
 ```
 
@@ -245,15 +270,15 @@ const [sql, params] = sqlBuilder
 // All condition examples
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account')
+  .from("user_account")
   .where({
-    email: '123@gmail.com', // exact match
+    email: "123@gmail.com", // exact match
     user_id: { ">": 123 },
     user_id: { "<": 123 },
     nickname: { IS_NOT_NULL: true }, // must be true
     is_active: { BETWEEN: [0, 1] },
     status: { IN: [1, 2, 3, 4] },
-    'u.user_id': { "!=": 1 } // assume alias is set in From's second parameters
+    "u.user_id": { "!=": 1 }, // assume alias is set in From's second parameters
   })
   .buildQuery();
 ```
@@ -279,17 +304,17 @@ Supported Operators:
 // Single order by
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account')
-  .orderBy([{ field: 'email', direction: 'ASC' }])
+  .from("user_account")
+  .orderBy([{ field: "email", direction: "ASC" }])
   .buildQuery();
 
 // Multiple order by
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account')
+  .from("user_account")
   .orderBy([
-    { field: 'email', direction: 'ASC' },
-    { field: 'user_id', direction: 'DESC' }
+    { field: "email", direction: "ASC" },
+    { field: "user_id", direction: "DESC" },
   ])
   .buildQuery();
 ```
@@ -300,14 +325,14 @@ const [sql, params] = sqlBuilder
 // Limit
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account')
+  .from("user_account")
   .limit(10)
   .buildQuery();
 
 // Limit and offset
 const [sql, params] = sqlBuilder
   .select()
-  .from('user_account')
+  .from("user_account")
   .limit(10)
   .offset(5)
   .buildQuery();
@@ -322,8 +347,8 @@ const [sql, params] = sqlBuilder
     enableTimestamps = false, // if true, will add ctime and utime to insert object
     ctimeField = 'ctime',
     utimeField = 'utime',
-    ctimeValue = this.getCurrentUnixTimestamp(), // default is current unix timestamp
-    utimeValue = this.getCurrentUnixTimestamp(), // default is current unix timestamp
+    ctimeValue = Math.floor(Date.now() / 1000), // default is current unix timestamp
+    utimeValue = Math.floor(Date.now() / 1000) // default is current unix timestamp
   })
   .buildQuery();
 ```
@@ -331,7 +356,39 @@ const [sql, params] = sqlBuilder
 ### .update() Method
 
 ```typescript
-// // Update single row
-// const [sql, params] = sqlBuilder
-//   .update('user_account', {email: '
+// Update Method 1
+const [sql, params] = sqlBuilder
+  .update('user_account', {email: '123@gmail.com'}, {
+    enableTimestamps = false, // if true, will add utime to update object
+    utimeField = 'utime',
+    utimeValue = Math.floor(Date.now() / 1000) // default is current unix timestamp
+  })
+  .where({user_id: 1})
+  .buildQuery();
+
+// Update Method 2 (Options not supported yet)
+const [sql, params] = sqlBuilder
+  .update('user_account')
+  .set({email: '123@gmail.com'})
+  .where({user_id: 1})
+  .buildQuery();
+```
+
+### .delete() Method
+
+```typescript
+// Delete Whole Table
+const [sql, params] = sqlBuilder.deleteFrom('user_account').buildQuery();
+
+// Delete with where
+const [sql, params] = sqlBuilder.deleteFrom('user_account')
+  .where({user_id: 1})
+  .buildQuery();
+
+// Delete with limit
+const [sql, params] = sqlBuilder.deleteFrom('user_account')
+  .where({user_id: {">": 1}})
+  .limit(1)
+  .buildQuery();
+```
 
