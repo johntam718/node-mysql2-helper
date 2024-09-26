@@ -177,12 +177,21 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
             for (const operator in value) {
               if (operator === 'IN' && Array.isArray(value[operator])) {
+                if (value[operator].length === 0) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
+                }
                 clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
                 localParams.push(...value[operator]);
-              } else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+              } else if (operator === 'BETWEEN' && Array.isArray(value[operator])) {
+                if (value[operator].length !== 2) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: BETWEEN :: condition must be an array with exactly 2 elements`));
+                }
                 clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
                 localParams.push(value[operator][0], value[operator][1]);
-              } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+              } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator])) {
+                if (value[operator].length !== 2) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: NOT_BETWEEN :: condition must be an array with exactly 2 elements`));
+                }
                 clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
                 localParams.push(value[operator][0], value[operator][1]);
               } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
