@@ -177,6 +177,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
 
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
             for (const operator in value) {
+              // Handle IN, BETWEEN, NOT_BETWEEN, =, !=, <, <=, >, >=, LIKE, IS_NULL, IS_NOT_NULL
               if (operator === 'IN' && Array.isArray(value[operator])) {
                 if (value[operator].length === 0) {
                   throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
@@ -199,6 +200,9 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
                 clauses.push(`${sanitizedKey} ${operator} ?`);
                 localParams.push(value[operator]);
               } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+                if (value[operator] !== true) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be true`));
+                }
                 clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
               } else {
                 throw new Error(this.printPrefixMessage(`processConditions :: Unsupported operator: ${operator}`));
@@ -406,7 +410,6 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
       });
     }
 
-    console.log(rows);
     const columns = Object.keys(rows[0]); // e.g. ['name', 'email', 'password']
     const placeholders = columns.map(() => '?').join(', '); // e.g. '?, ?, ?'
     const columnPlaceholders = columns.map(() => '??').join(', '); // e.g. 'name, email, password'
@@ -495,7 +498,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> implem
   }
 
   executeQuery<T = QueryReturnType>(): Promise<T> {
-    if (!this.queryFn) throw new Error(this.printPrefixMessage('executeQuery :: Query function is not defined / provided'));
+    if (!this.queryFn) throw new Error(this.printPrefixMessage('executeQuery :: Query function is not defined / provided in the constructor'));
     const [sql, params] = this.buildQuery();
     return this.queryFn<T>(sql, params);
   }
