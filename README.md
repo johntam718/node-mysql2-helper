@@ -20,6 +20,90 @@ yarn add node-mysql-query-utils
 
 ## Usage
 
+### Common usage
+
+```typescript
+import { DatabaseManagement, TableModel, SQLBuilder, sqlHelper } from "node-mysql-query-utils";
+
+// entry point of the application e.g. start server
+// index.ts
+DatabaseManagement.connectMultipleDatabases([
+  {
+    identifierName: 'mainDB',
+    config: {
+      host: "localhost",
+      user: "root",
+      password: "password",
+      database: "test_db",
+    },
+  }
+]);
+
+// model folder
+// user.ts
+const mainDB = DatabaseManagement.getInstance('mainDB'); // referring to the identifierName
+const columns = sqlHelper.createColumns([
+  "user_id",
+  "ctime",
+  "utime",
+  "email",
+  "mobile",
+  "password",
+  "is_active",
+  "is_deleted",
+]);
+export const userAccountModel = mainDB.createTableModel({
+  tableName: "user_account",
+  primaryKey: "user_id",
+  columns,
+  centralFields: {
+    ctimeField: 'ctime', // created_at column name in db
+    utimeField: 'utime', // updated_at column name in db
+    isActiveField: 'is_active', // is_active column name in db
+    isDeletedField: 'is_deleted', // is_deleted column name in db
+    statusField: 'status', // status column name in db
+  }
+});
+
+// usage of userAccountModel in other files e.g. api-related files
+// get user by id
+  const [user] = await userModel.findOne({ where: { user_id: 1234 } }).executeQuery();
+// get all users
+  const users = await userModel.findAll().executeQuery();
+
+// updateOne user
+  const updatedOneUser = await userModel.updateOne({
+    where: { user_id: 1052 }, 
+    data: { email: '123@gmail.com' } 
+  }).executeQuery()
+
+// deleteOne user
+  const deletedOneUser =  await userModel.removeOne({
+    where: { user_id: { ">": 1234 } },
+    orderBy: [{ field: 'user_id', direction: 'ASC' }]
+  }).executeQuery()
+
+// deleteAll users
+  const deletedAllUsers = await userModel.remove({ where: { user_id: 1234 } }).executeQuery()
+
+// soft delete user
+// update is_deleted = 1, utime = current_timestamp
+  const softDeletedUser =  await userModel.softDelete({
+    where: { user_id: 1234 },
+    value: 1,
+    options: { enableTimestamps: true, deleteField: 'is_deleted', utimeField: 'utime' }
+  }).executeQuery();
+
+// patch single field
+  const patchedActiveField = await userModel.patchSingleField({
+    patchField: 'is_active',
+    where: { user_id: 1234 },
+    value: 1,
+    options: { enableTimestamps: true, utimeField: 'utime' } // update updated_at field
+  }).executeQuery();
+
+```
+
 ### Database Management
 
 The **`DatabaseManagement`** class is a singleton class that helps manage database connections. It supports connecting to single or multiple databases and provides a way to retrieve instances of the connections.
@@ -156,17 +240,35 @@ The **`SQLBuilder`** class provides a way to build SQL queries for CRUD operatio
 #### Example
 
 ```typescript
-import { SQLBuilder } from "node-mysql-query-utils";
+import { SQLBuilder, sqlHelper } from "node-mysql-query-utils";
 
 // Define the table name
 const tableName = "user_account";
 
-// Create an instance of the SQLBuilder class
+// Javascript
 const sqlBuilder = new SQLBuilder();
+
+const columns = sqlHelper.createColumns([
+  "user_id",
+  "ctime",
+  "utime",
+  "email",
+  "mobile",
+  "password",
+  "is_active",
+  "is_deleted",
+]);
+
+// typescript
+const sqlBuilder = new SQLBuilder<typeof columns[number]>();
+
 // Accept QueryFunction for SQLBuilder to enable query execution
 const sqlBuilder = new SQLBuilder(db.query.bind(db));
 
-// Call buildQuery to get the SQL query and parameters
+// Accept second generic type for query function
+const sqlBuilder = new SQLBuilder<typeof columns[number], any>(db.query.bind(db));
+
+// Call buildQuery to get the SQL query and parameters in the end
 const { sql, params } = sqlBuilder.select().from(tableName).buildQuery();
 // Can also use array destructuring
 const [sql, params] = sqlBuilder.select().from(tableName).buildQuery();
