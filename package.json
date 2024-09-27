@@ -2,6 +2,20 @@
   "name": "node-mysql-query-utils",
   "version": "1.0.1",
   "description": "A simple MySQL query utils for Node.js",
+  "author": "John Tam <johntam718@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johntam718/node-mysql2-helper.git"
+  },
+  "homepage": "https://github.com/johntam718/node-mysql2-helper#readme",
+  "keywords": [
+    "mysql",
+    "mysql2",
+    "query",
+    "utils",
+    "node"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,6 +23,8 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch test/index.ts",
     "dev:node14": "nodemon --watch dist test/index.js",
+    "pre:publish": "yarn run build",
+    "publish": "npm publish",
     "build": "rm -rf dist && tsc --project tsconfig.build.json && tsc-alias -p tsconfig.build.json"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 # node-mysql-query-utils
 
-A MySQL query builder and helper for Node.js, written in TypeScript.
+A MySQL query builder and helper for Node.js.
 
 [![npm version](https://badge.fury.io/js/node-mysql-query-utils.svg)](https://badge.fury.io/js/node-mysql-query-utils)
 
@@ -500,3 +500,6 @@ const [sql, params] = sqlBuilder.deleteFrom('user_account')
   .buildQuery();
 ```
 
+## Changelog
+
+Detailed changes for each version are documented in the [CHANGELOG.md](https://github.com/johntam718/node-mysql2-helper/blob/main/CHANGELOG.md) file.
