@@ -216,7 +216,7 @@ const userAccountModel = new TableModel({
   tableName: "user_account",
   primaryKey: "user_id",
   columns,
-  queryFn: db.query.bind(db), // Optional: put your own query function here if you don't connect DB by DatabaseManagement class
+  queryFn: db.query.bind(db), // Optional: put your own query function here if you don't connect DB by DatabaseManagement class from this package
 });
 ```
 
@@ -263,10 +263,10 @@ const columns = sqlHelper.createColumns([
 const sqlBuilder = new SQLBuilder<typeof columns[number]>();
 
 // Accept QueryFunction for SQLBuilder to enable query execution
-const sqlBuilder = new SQLBuilder(db.query.bind(db));
+const sqlBuilder = new SQLBuilder(db.query.bind(db)); // Optional: put your own query function here if you don't connect DB by DatabaseManagement class from this package
 
 // Accept second generic type for query function
-const sqlBuilder = new SQLBuilder<typeof columns[number], any>(db.query.bind(db));
+const sqlBuilder = new SQLBuilder<typeof columns[number], any>(db.query.bind(db)); // Optional: put your own query function here if you don't connect DB by DatabaseManagement class from this package
 
 // Call buildQuery to get the SQL query and parameters in the end
 const { sql, params } = sqlBuilder.select().from(tableName).buildQuery();
