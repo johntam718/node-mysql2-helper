@@ -242,7 +242,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     return SQLBuild.deleteFrom(this.tableName)
       .where(where)
       .orderBy(orderBy)
-      .limit(1);
+      .limit(1) as QueryAction<ResultSetHeader>;
   }
 
   remove(values: {
@@ -254,20 +254,23 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     this.throwEmptyObjectError(where, this.printPrefixMessage('Remove :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.deleteFrom(this.tableName)
-      .where(where)
-      .orderBy(orderBy);
+      .where(where) as QueryAction<ResultSetHeader>;
   }
 
-  patchActiveStatus<T>(values: {
+  patchSingleField<T>(values: {
+    patchField: ColumnKeys,
     where: WhereCondition<ColumnKeys>,
     value: T,
     options?: PatchOptions
   }) {
-    const { where, value, options } = values || {};
-    const { patchField } = options || {};
+    const { where, value, options, patchField } = values || {};
+    // const { patchField } = options || {};
+    if (!patchField) {
+      throw new Error(this.printPrefixMessage('PatchSingleField :: Patch field is required'));
+    }
     this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    const data = { [patchField || this.centralFields.isActiveField!]: value } as ColumnData<ColumnKeys>;
+    const data = { [patchField]: value } as ColumnData<ColumnKeys>;
     return SQLBuild.update(this.tableName, data, options)
       .where(where) as QueryAction<ResultSetHeader>;
   }

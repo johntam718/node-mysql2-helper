@@ -75,7 +75,7 @@ export type UpdateOptions = {
 };
 
 export type PatchOptions = Prettify<{
-  patchField?: string;
+  // patchField?: string;
 } &  Omit<UpdateOptions, 'primaryKey'>>;
 
 export type SoftDeleteOptions = Prettify<{
