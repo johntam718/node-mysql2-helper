@@ -33,10 +33,10 @@ const table_model_1 = require("../src/table-model");
 // Singleton class to manage database connections
 class DatabaseManagement {
     static instances = new Map();
-    connectionName;
     config;
-    pool;
     verbose;
+    connectionName;
+    pool;
     constructor(connectionName, config, options = {}) {
         this.connectionName = `[db::${connectionName}]`;
         this.config = config;
@@ -47,15 +47,15 @@ class DatabaseManagement {
         if (this.verbose)
             logger_1.default.log(message);
     }
-    async initConnection() {
+    initConnection() {
         try {
             this.pool = promise_1.default.createPool(this.config);
             if (this.verbose) {
                 logger_1.default.info(`Connection pool created for ${this.connectionName}`);
             }
             // Test the connection, and release it back to the pool
-            const connection = await this.pool.getConnection();
-            connection.release();
+            // const connection = await this.pool.getConnection();
+            // connection.release();
             // if (this.verbose) {
             //   logger.log(`Connection tested and released for ${this.connectionName}`);
             // }
@@ -71,11 +71,11 @@ class DatabaseManagement {
             throw error; // Re-throw the error after logging it
         }
     }
-    static async initializeConnection(identifierName, config, options) {
+    static initializeConnection(identifierName, config, options) {
         if (!DatabaseManagement.instances.has(identifierName)) {
             try {
                 const instance = new DatabaseManagement(identifierName, config, options);
-                await instance.initConnection(); // Initialize the connection
+                instance.initConnection(); // Initialize the connection
                 logger_1.default.info(`db.connection :: <${identifierName}> :: host >> ${config.host}, database >> ${config.database}`);
                 DatabaseManagement.instances.set(identifierName, instance);
             }
@@ -85,12 +85,12 @@ class DatabaseManagement {
             }
         }
     }
-    static async connectSingleDatabase(identifierName, config, options) {
-        await DatabaseManagement.initializeConnection(identifierName, config, options);
+    static connectSingleDatabase(identifierName, config, options) {
+        DatabaseManagement.initializeConnection(identifierName, config, options);
     }
-    static async connectMultipleDatabases(configs) {
+    static connectMultipleDatabases(configs) {
         for (const { identifierName, config, options } of configs) {
-            await DatabaseManagement.initializeConnection(identifierName, config, options);
+            DatabaseManagement.initializeConnection(identifierName, config, options);
         }
     }
     static getInstance(identifierName) {
@@ -115,7 +115,7 @@ class DatabaseManagement {
         return DatabaseManagement.formatQuery(sql, params);
     }
     createTableModel(BuildSQLConstructor) {
-        return new table_model_1.TableModel(BuildSQLConstructor);
+        return new table_model_1.TableModel({ ...BuildSQLConstructor, queryFn: this.executeQuery.bind(this) });
     }
     async createTransactionConnection() {
         if (!this.pool) {
@@ -131,7 +131,8 @@ class DatabaseManagement {
                 const [result, mysqlFieldMetaData] = await connection.query(sql, params);
                 return result;
             },
-            commit: async (release = false) => {
+            commit: async (options) => {
+                const { release = false } = options || {};
                 try {
                     this.logVerbose(`${this.connectionName} :: transaction :: committing`);
                     await connection.commit();
@@ -143,7 +144,8 @@ class DatabaseManagement {
                     }
                 }
             },
-            rollback: async (release = false) => {
+            rollback: async (options) => {
+                const { release = false } = options || {};
                 try {
                     this.logVerbose(`${this.connectionName} :: transaction :: rolling back`);
                     await connection.rollback();

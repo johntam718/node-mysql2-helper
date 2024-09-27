@@ -49,10 +49,21 @@ class TableModel {
             throw new Error(message || 'Object cannot be empty');
         }
     }
+    throwEmptyArrayError(arr, message) {
+        if (arr.length === 0) {
+            throw new Error(message || 'Array cannot be empty');
+        }
+    }
     printPrefixMessage(message) {
         return `[Table :: ${this.tableName}] :: ${message}`;
     }
-    removeExtraFieldsAndLog(structuredData) {
+    removeExtraFieldsAndLog(structuredData, index) {
+        if (Array.isArray(structuredData)) {
+            structuredData.forEach((data, index) => {
+                this.removeExtraFieldsAndLog(data, index);
+            });
+            return;
+        }
         const removedKeys = [];
         // Remove extra fields that are not in the columns
         Object.keys(structuredData).forEach(key => {
@@ -62,7 +73,7 @@ class TableModel {
             }
         });
         if (removedKeys.length > 0) {
-            logger_1.default.warn(this.printPrefixMessage(`Removed unknown fields: ${removedKeys.join(', ')}`));
+            logger_1.default.warn(this.printPrefixMessage(`Removed unknown fields: ${removedKeys.join(', ')} from data[${index}]`));
         }
     }
     initSQLBuilder() {
@@ -153,8 +164,13 @@ class TableModel {
             .where(where);
     }
     insertRecord(data, options) {
-        this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
-        const structuredData = { ...data };
+        if (Array.isArray(data)) {
+            this.throwEmptyArrayError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+        }
+        else {
+            this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+        }
+        const structuredData = Array.isArray(data) ? data : [data];
         this.removeExtraFieldsAndLog(structuredData);
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.insert(this.tableName, structuredData, options);
@@ -174,15 +190,17 @@ class TableModel {
         this.throwEmptyObjectError(where, this.printPrefixMessage('Remove :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.deleteFrom(this.tableName)
-            .where(where)
-            .orderBy(orderBy);
+            .where(where);
     }
-    patchActiveStatus(values) {
-        const { where, value, options } = values || {};
-        const { patchField } = options || {};
+    patchSingleField(values) {
+        const { where, value, options, patchField } = values || {};
+        // const { patchField } = options || {};
+        if (!patchField) {
+            throw new Error(this.printPrefixMessage('PatchSingleField :: Patch field is required'));
+        }
         this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
-        const data = { [patchField || this.centralFields.isActiveField]: value };
+        const data = { [patchField]: value };
         return SQLBuild.update(this.tableName, data, options)
             .where(where);
     }

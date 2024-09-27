@@ -25,6 +25,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logger = exports.sqlHelper = exports.mysql2 = void 0;
 __exportStar(require("./src/database-management"), exports);
@@ -32,5 +35,6 @@ __exportStar(require("./src/table-model"), exports);
 __exportStar(require("./src/sql-builder"), exports);
 exports.mysql2 = __importStar(require("./src/mysql2"));
 exports.sqlHelper = __importStar(require("./lib/helper"));
-exports.logger = __importStar(require("./lib/logger"));
+const logger_1 = __importDefault(require("./lib/logger"));
+exports.logger = logger_1.default;
 //# sourceMappingURL=index.js.map

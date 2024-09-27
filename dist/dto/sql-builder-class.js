@@ -130,15 +130,25 @@ class SQLBuilder {
                     const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
                     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                         for (const operator in value) {
+                            // Handle IN, BETWEEN, NOT_BETWEEN, =, !=, <, <=, >, >=, LIKE, IS_NULL, IS_NOT_NULL
                             if (operator === 'IN' && Array.isArray(value[operator])) {
+                                if (value[operator].length === 0) {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
+                                }
                                 clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
                                 localParams.push(...value[operator]);
                             }
-                            else if (operator === 'BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                            else if (operator === 'BETWEEN' && Array.isArray(value[operator])) {
+                                if (value[operator].length !== 2) {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: BETWEEN :: condition must be an array with exactly 2 elements`));
+                                }
                                 clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
                                 localParams.push(value[operator][0], value[operator][1]);
                             }
-                            else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator]) && value[operator].length === 2) {
+                            else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator])) {
+                                if (value[operator].length !== 2) {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: NOT_BETWEEN :: condition must be an array with exactly 2 elements`));
+                                }
                                 clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
                                 localParams.push(value[operator][0], value[operator][1]);
                             }
@@ -147,6 +157,9 @@ class SQLBuilder {
                                 localParams.push(value[operator]);
                             }
                             else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+                                if (value[operator] !== true) {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be true`));
+                                }
                                 clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
                             }
                             else {
@@ -302,16 +315,24 @@ class SQLBuilder {
     insert(table, values, options) {
         this.checkTableName(table, 'insert');
         const { enableTimestamps = false, ctimeField = 'ctime', utimeField = 'utime', ctimeValue = this.getCurrentUnixTimestamp(), utimeValue = this.getCurrentUnixTimestamp(), } = options || {};
-        if (enableTimestamps) {
-            values[ctimeField] = ctimeValue;
-            values[utimeField] = utimeValue;
+        const isMultipleInsert = Array.isArray(values);
+        const rows = isMultipleInsert ? values : [values];
+        if (isMultipleInsert && rows.length === 0) {
+            throw new Error(this.printPrefixMessage('Insert :: Values cannot be empty'));
         }
-        const columns = Object.keys(values); // e.g. ['name', 'email', 'password']
+        if (enableTimestamps) {
+            rows.forEach((row) => {
+                row[ctimeField] = ctimeValue;
+                row[utimeField] = utimeValue;
+            });
+        }
+        const columns = Object.keys(rows[0]); // e.g. ['name', 'email', 'password']
         const placeholders = columns.map(() => '?').join(', '); // e.g. '?, ?, ?'
         const columnPlaceholders = columns.map(() => '??').join(', '); // e.g. 'name, email, password'
-        const valueParams = Object.values(values); // e.g. ['John Doe', '
+        const valueParams = rows.flatMap(row => Object.values(row)); // e.g. ['doe', 'doe@gmail.com', 'password']
         const columnParams = columns;
-        let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES (${placeholders})`;
+        const valuesPlaceholders = rows.map(() => `(${placeholders})`).join(', '); // e.g. '(?, ?, ?), (?, ?, ?)'
+        let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES ${valuesPlaceholders}`;
         if (options?.onDuplicateKeyUpdate) {
             const updateColumns = Object.keys(options.onDuplicateKeyUpdate).map(key => '?? = ?').join(', ');
             const updateParams = Object.entries(options.onDuplicateKeyUpdate).flatMap(([key, value]) => [key, value]);
@@ -383,7 +404,7 @@ class SQLBuilder {
     }
     executeQuery() {
         if (!this.queryFn)
-            throw new Error(this.printPrefixMessage('executeQuery :: Query function is not defined / provided'));
+            throw new Error(this.printPrefixMessage('executeQuery :: Query function is not defined / provided in the constructor'));
         const [sql, params] = this.buildQuery();
         return this.queryFn(sql, params);
     }

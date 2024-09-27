@@ -94,6 +94,7 @@ export type OrderByField<T> = {
 };
 export type GroupByField<T> = T | (string & {}) | T[];
 export type ColumnData<T extends string> = Partial<Record<T, any>>;
+export type InsertValue<T extends string> = ColumnData<T> | ColumnData<T>[];
 export type InsertOptions = {
     insertIgnore?: boolean;
     onDuplicateKeyUpdate?: ObjectValues;
@@ -109,9 +110,7 @@ export type UpdateOptions = {
     utimeField?: string;
     utimeValue?: any;
 };
-export type PatchOptions = Prettify<{
-    patchField?: string;
-} & Omit<UpdateOptions, 'primaryKey'>>;
+export type PatchOptions = Prettify<{} & Omit<UpdateOptions, 'primaryKey'>>;
 export type SoftDeleteOptions = Prettify<{
     deleteField?: string;
 } & UpdateOptions>;

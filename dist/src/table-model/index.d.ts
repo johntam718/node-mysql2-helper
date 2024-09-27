@@ -1,5 +1,5 @@
 import { SQLBuilder } from "../../dto/sql-builder-class";
-import { ColumnData, InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields } from "../../dto/types";
+import { ColumnData, InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields, InsertValue } from "../../dto/types";
 import type { QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
 export declare class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
     tableName: string;
@@ -11,6 +11,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
     private checkConfig;
     private checkEmptyObject;
     private throwEmptyObjectError;
+    private throwEmptyArrayError;
     private printPrefixMessage;
     private removeExtraFieldsAndLog;
     initSQLBuilder<T extends ColumnKeys, QueryReturnType extends QueryResult>(): SQLBuilder<T, QueryReturnType>;
@@ -46,16 +47,17 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         where?: WhereCondition<ColumnKeys>;
         options?: UpdateOptions;
     }>): QueryAction<ResultSetHeader>;
-    insertRecord(data: ColumnData<ColumnKeys>, options?: InsertOptions): import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
+    insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions): import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
     removeOne(values: {
         where: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];
-    }): import("../../dto/types").LimitQueryBuilder<ResultSetHeader>;
+    }): QueryAction<ResultSetHeader>;
     remove(values: {
         where: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];
-    }): import("../../dto/types").OrderByQueryBuilder<ResultSetHeader>;
-    patchActiveStatus<T>(values: {
+    }): QueryAction<ResultSetHeader>;
+    patchSingleField<T>(values: {
+        patchField: ColumnKeys;
         where: WhereCondition<ColumnKeys>;
         value: T;
         options?: PatchOptions;
