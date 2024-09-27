@@ -272,6 +272,12 @@ const sqlBuilder = new SQLBuilder<typeof columns[number], any>(db.query.bind(db)
 const { sql, params } = sqlBuilder.select().from(tableName).buildQuery();
 // Can also use array destructuring
 const [sql, params] = sqlBuilder.select().from(tableName).buildQuery();
+
+// run your own query function if you don't connect DB by DatabaseManagement class from this package
+const result = await db.query(sql, params);
+
+// if query function is provided in SQLBuilder, you can execute the query directly
+const result = await sqlBuilder.select().from(tableName).executeQuery();
 ```
 
 ### .select() Method
