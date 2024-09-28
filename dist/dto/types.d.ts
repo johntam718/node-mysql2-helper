@@ -122,6 +122,9 @@ export type LimitOffset = {
     offset?: number;
 };
 export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
+export type BuildQueryOptions = {
+    format?: boolean;
+};
 export type BuildQueryResult = {
     sql: string;
     params: any[];
@@ -129,19 +132,19 @@ export type BuildQueryResult = {
 };
 export type QueryFunction = <T>(sql: string, params?: any[]) => Promise<T>;
 export type QueryAction<QueryReturnType> = {
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 };
 export type SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
     from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 };
 export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
     limit(limit: number): LimitQueryBuilder<QueryReturnType>;
     groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
@@ -151,51 +154,51 @@ export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
     groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
     orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
     limit(limit: number): LimitQueryBuilder<QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 };
 export interface JoinQueryBuilder<ColumnKeys extends string, QueryReturnType> extends FromQueryBuilder<ColumnKeys, QueryReturnType> {
 }
 export interface OrderByQueryBuilder<T> {
     limit(limit: number): LimitQueryBuilder<T>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<K = T>(): Promise<K>;
 }
 export interface GroupByQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> {
 }
 export interface LimitQueryBuilder<QueryReturnType> {
     offset(offset: number): OffsetQueryBuilder<QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface OffsetQueryBuilder<QueryReturnType> {
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     set?(values: ColumnData<ColumnKeys>): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface UpdateQueryBuilderWithoutSet<ColumnKeys extends string, QueryReturnType> {
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface SetQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface InsertQueryBuilder<QueryReturnType> {
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
     limit(limit: number): LimitQueryBuilder<QueryReturnType>;
-    buildQuery(): BuildQueryResult;
+    buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 type EqualOperator = {

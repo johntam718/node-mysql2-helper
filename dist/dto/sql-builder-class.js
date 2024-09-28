@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SQLBuilder = void 0;
+const mysql2_1 = require("mysql2");
 class SQLBuilder {
-    queryParts;
+    #queryParts;
     queryFn;
+    message = 'Call .buildQuery() or .executeQuery() to get the result';
     constructor(queryFn) {
-        this.queryParts = {
+        this.#queryParts = {
             count: { sql: "", params: [] },
             select: { sql: "", params: [] },
             from: { sql: "", params: [] },
@@ -180,48 +182,48 @@ class SQLBuilder {
     // For simple count query e.g. SELECT COUNT(*) FROM table
     count(field = '*', alias) {
         const countClause = `COUNT(${field === '*' ? '*' : '??'})`;
-        this.queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
-        this.queryParts.select.params = field === '*' ? [] : [field];
+        this.#queryParts.select.sql = `SELECT ${alias ? `${countClause} AS ??` : countClause}`;
+        this.#queryParts.select.params = field === '*' ? [] : [field];
         if (alias) {
-            this.queryParts.select.params.push(alias);
+            this.#queryParts.select.params.push(alias);
         }
         return this;
     }
     max(field, alias) {
-        this.queryParts.select.sql = `SELECT MAX(??)${alias ? ` AS ??` : ''}`;
-        this.queryParts.select.params = alias ? [field, alias] : [field];
+        this.#queryParts.select.sql = `SELECT MAX(??)${alias ? ` AS ??` : ''}`;
+        this.#queryParts.select.params = alias ? [field, alias] : [field];
         return this;
     }
     min(field, alias) {
-        this.queryParts.select.sql = `SELECT MIN(??)${alias ? ` AS ??` : ''}`;
-        this.queryParts.select.params = alias ? [field, alias] : [field];
+        this.#queryParts.select.sql = `SELECT MIN(??)${alias ? ` AS ??` : ''}`;
+        this.#queryParts.select.params = alias ? [field, alias] : [field];
         return this;
     }
     avg(field, alias) {
-        this.queryParts.select.sql = `SELECT AVG(??)${alias ? ` AS ??` : ''}`;
-        this.queryParts.select.params = alias ? [field, alias] : [field];
+        this.#queryParts.select.sql = `SELECT AVG(??)${alias ? ` AS ??` : ''}`;
+        this.#queryParts.select.params = alias ? [field, alias] : [field];
         return this;
     }
     sum(field, alias) {
-        this.queryParts.select.sql = `SELECT SUM(??)${alias ? ` AS ??` : ''}`;
-        this.queryParts.select.params = alias ? [field, alias] : [field];
+        this.#queryParts.select.sql = `SELECT SUM(??)${alias ? ` AS ??` : ''}`;
+        this.#queryParts.select.params = alias ? [field, alias] : [field];
         return this;
     }
     select(fields = "*") {
         const _fields = Array.isArray(fields) ? this.uniqueFields(fields) : fields;
         const { sql, params } = this.processFields(_fields);
-        this.queryParts.select.sql = sql;
-        this.queryParts.select.params = params;
+        this.#queryParts.select.sql = sql;
+        this.#queryParts.select.params = params;
         return this;
     }
     from(table, alias) {
         this.checkTableName(table, 'from');
         const [tableName, extractedAlias] = this.extractTableAndAlias(table, alias);
-        this.queryParts.from.sql = `FROM ??`;
-        this.queryParts.from.params = [tableName];
+        this.#queryParts.from.sql = `FROM ??`;
+        this.#queryParts.from.params = [tableName];
         if (extractedAlias) {
-            this.queryParts.from.sql += ` AS ??`;
-            this.queryParts.from.params.push(alias || extractedAlias);
+            this.#queryParts.from.sql += ` AS ??`;
+            this.#queryParts.from.params.push(alias || extractedAlias);
         }
         return this;
     }
@@ -240,46 +242,46 @@ class SQLBuilder {
         const joinClause = `${joinType.toUpperCase()} JOIN ??${extractedAlias ? ' AS ??' : ''} ON ${actualOnCondition}`;
         const joinParams = extractedAlias ? [tableName, extractedAlias] : [tableName];
         // Append the new join clause and parameters
-        this.queryParts.join.sql += (this.queryParts.join.sql ? ' ' : '') + joinClause;
-        this.queryParts.join.params.push(...joinParams);
+        this.#queryParts.join.sql += (this.#queryParts.join.sql ? ' ' : '') + joinClause;
+        this.#queryParts.join.params.push(...joinParams);
         return this;
     }
     where(conditions) {
         const { clause, params } = this.buildWhereClause(conditions);
-        this.queryParts.where.sql = clause ? `WHERE ${clause}` : '';
-        this.queryParts.where.params = params;
+        this.#queryParts.where.sql = clause ? `WHERE ${clause}` : '';
+        this.#queryParts.where.params = params;
         return this;
     }
     groupBy(fields) {
         if (typeof fields === 'string') {
-            this.queryParts.groupBy.sql = 'GROUP BY ??';
-            this.queryParts.groupBy.params = [fields];
+            this.#queryParts.groupBy.sql = 'GROUP BY ??';
+            this.#queryParts.groupBy.params = [fields];
         }
         else if (Array.isArray(fields) && fields.length > 0) {
-            this.queryParts.groupBy.sql = 'GROUP BY ' + fields.map(() => '??').join(', ');
-            this.queryParts.groupBy.params = fields;
+            this.#queryParts.groupBy.sql = 'GROUP BY ' + fields.map(() => '??').join(', ');
+            this.#queryParts.groupBy.params = fields;
         }
         return this;
     }
     orderBy(fields) {
         if (!Array.isArray(fields) || fields.length === 0)
             return this;
-        this.queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
-        this.queryParts.orderBy.params = fields.map(({ field }) => field);
+        this.#queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
+        this.#queryParts.orderBy.params = fields.map(({ field }) => field);
         return this;
     }
     limit(limit) {
         if (isNaN(limit) || limit < 0)
             return this;
-        this.queryParts.limit.sql = `LIMIT ?`;
-        this.queryParts.limit.params = [limit];
+        this.#queryParts.limit.sql = `LIMIT ?`;
+        this.#queryParts.limit.params = [limit];
         return this;
     }
     offset(offset) {
         if (isNaN(offset) || offset < 0)
             return this;
-        this.queryParts.offset.sql = `OFFSET ?`;
-        this.queryParts.offset.params = [offset];
+        this.#queryParts.offset.sql = `OFFSET ?`;
+        this.#queryParts.offset.params = [offset];
         return this;
     }
     update(table, values, options) {
@@ -295,8 +297,8 @@ class SQLBuilder {
         if ((primaryKey && values) && values?.[primaryKey]) {
             delete values[primaryKey];
         }
-        this.queryParts.update.sql = `UPDATE ??`;
-        this.queryParts.update.params = [table];
+        this.#queryParts.update.sql = `UPDATE ??`;
+        this.#queryParts.update.params = [table];
         this.throwEmptyObjectError(values, this.printPrefixMessage('Update :: Data cannot be empty'));
         if (values) {
             this.set(values);
@@ -308,8 +310,8 @@ class SQLBuilder {
         this.throwEmptyObjectError(values, this.printPrefixMessage('Set :: Values cannot be empty'));
         const setClauses = Object.keys(values).map(key => `?? = ?`);
         const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
-        this.queryParts.set.sql = `SET ${setClauses.join(', ')}`;
-        this.queryParts.set.params = setParams;
+        this.#queryParts.set.sql = `SET ${setClauses.join(', ')}`;
+        this.#queryParts.set.params = setParams;
         return this;
     }
     insert(table, values, options) {
@@ -339,52 +341,53 @@ class SQLBuilder {
             insertClause += ` ON DUPLICATE KEY UPDATE ${updateColumns}`;
             valueParams.push(...updateParams);
         }
-        this.queryParts.insert.sql = insertClause;
-        this.queryParts.insert.params = [table, ...columnParams, ...valueParams];
+        this.#queryParts.insert.sql = insertClause;
+        this.#queryParts.insert.params = [table, ...columnParams, ...valueParams];
         return this;
     }
     deleteFrom(table) {
         this.checkTableName(table, 'delete');
-        this.queryParts.delete.sql = `DELETE FROM ??`;
-        this.queryParts.delete.params = [table];
+        this.#queryParts.delete.sql = `DELETE FROM ??`;
+        this.#queryParts.delete.params = [table];
         return this;
     }
-    buildQuery() {
+    buildQuery(options) {
+        const { format = false } = options || {};
         const sql = [
             // Reminder: The order of these parts matter
-            this.queryParts.count.sql,
-            this.queryParts.select.sql,
-            this.queryParts.update.sql,
-            this.queryParts.insert.sql,
-            this.queryParts.delete.sql,
-            this.queryParts.set.sql,
-            this.queryParts.from.sql,
-            this.queryParts.join.sql,
-            this.queryParts.where.sql,
-            this.queryParts.groupBy.sql,
-            this.queryParts.orderBy.sql,
-            this.queryParts.limit.sql,
-            this.queryParts.offset.sql,
+            this.#queryParts.count.sql,
+            this.#queryParts.select.sql,
+            this.#queryParts.update.sql,
+            this.#queryParts.insert.sql,
+            this.#queryParts.delete.sql,
+            this.#queryParts.set.sql,
+            this.#queryParts.from.sql,
+            this.#queryParts.join.sql,
+            this.#queryParts.where.sql,
+            this.#queryParts.groupBy.sql,
+            this.#queryParts.orderBy.sql,
+            this.#queryParts.limit.sql,
+            this.#queryParts.offset.sql,
         ].filter(Boolean).join(' ').trim();
         const params = [
             // Reminder: The order of these parts matter
-            ...(this.queryParts.count.params || []),
-            ...(this.queryParts.select.params || []),
-            ...(this.queryParts.update.params || []),
-            ...(this.queryParts.insert.params || []),
-            ...(this.queryParts.delete.params || []),
-            ...(this.queryParts.set.params || []),
-            ...(this.queryParts.from.params || []),
-            ...(this.queryParts.join.params || []),
-            ...(this.queryParts.where.params || []),
-            ...(this.queryParts.groupBy.params || []),
-            ...(this.queryParts.orderBy.params || []),
-            ...(this.queryParts.limit.params || []),
-            ...(this.queryParts.offset.params || []),
+            ...(this.#queryParts.count.params || []),
+            ...(this.#queryParts.select.params || []),
+            ...(this.#queryParts.update.params || []),
+            ...(this.#queryParts.insert.params || []),
+            ...(this.#queryParts.delete.params || []),
+            ...(this.#queryParts.set.params || []),
+            ...(this.#queryParts.from.params || []),
+            ...(this.#queryParts.join.params || []),
+            ...(this.#queryParts.where.params || []),
+            ...(this.#queryParts.groupBy.params || []),
+            ...(this.#queryParts.orderBy.params || []),
+            ...(this.#queryParts.limit.params || []),
+            ...(this.#queryParts.offset.params || []),
         ];
         return {
-            sql,
-            params,
+            sql: format ? (0, mysql2_1.format)(sql, params) : sql,
+            params: format ? [] : params,
             // For allowing array destructuring
             [Symbol.iterator]() {
                 let index = 0;
