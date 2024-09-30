@@ -134,7 +134,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   createInsert(options?: InsertOptions) {
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return (data: ColumnData<ColumnKeys>) => {
+    return (data: ColumnData<ColumnKeys> = {}) => {
       this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
       const structuredData = { ...data };
       this.removeExtraFieldsAndLog(structuredData);
@@ -148,7 +148,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     return (values: {
       where: WhereCondition<ColumnKeys>,
     }) => {
-      const { where } = values || {};
+      const { where = {} } = values || {};
       this.throwEmptyObjectError(where, this.printPrefixMessage('CreateDelete :: Where condition cannot be empty'));
       return SQLBuild.deleteFrom(this.tableName)
         .where(where)
@@ -167,7 +167,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     where: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[],
   }) {
-    const { where, orderBy = [], fields } = values || {};
+    const { where = {}, orderBy = [], fields } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
     return SQLBuild.select(fields || "*")
@@ -198,7 +198,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     where: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
-    const { data, where, options } = values || {};
+    const { data = {}, where = {}, options } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
     this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
@@ -213,7 +213,9 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     where?: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
-    const { data, where = {}, options } = values || {};
+    const { data = {}, where = {}, options } = values || {};
+    this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
+    if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
@@ -236,7 +238,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     where: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[]
   }) {
-    const { where, orderBy = [] } = values || {};
+    const { where = {}, orderBy = [] } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('RemoveOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.deleteFrom(this.tableName)
@@ -247,9 +249,8 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   remove(values: {
     where: WhereCondition<ColumnKeys>,
-    orderBy?: OrderByField<ColumnKeys>[]
   }) {
-    const { where = {}, orderBy = [] } = values || {};
+    const { where = {} } = values || {};
     // Prevent accidental deletion of all records
     this.throwEmptyObjectError(where, this.printPrefixMessage('Remove :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
@@ -263,9 +264,8 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     value: T,
     options?: PatchOptions
   }) {
-    const { where, value, options, patchField } = values || {};
-    // const { patchField } = options || {};
-    if (!patchField) {
+    const { where = {}, value, options, patchField } = values || {};
+    if (typeof patchField !== 'string' || patchField.length === 0) {
       throw new Error(this.printPrefixMessage('PatchSingleField :: Patch field is required'));
     }
     this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
@@ -280,7 +280,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     value: T,
     options?: SoftDeleteOptions
   }) {
-    const { where, value, options } = values || {};
+    const { where = {}, value, options } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDeleteOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     const data = { [options?.deleteField || this.centralFields.isDeletedField!]: value } as ColumnData<ColumnKeys>;
@@ -294,7 +294,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     value: any,
     options?: SoftDeleteOptions
   }) {
-    const { where, value, options } = values || {};
+    const { where = {}, value, options } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDelete :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     const data = { [options?.deleteField || this.centralFields.isDeletedField!]: value } as ColumnData<ColumnKeys>;
