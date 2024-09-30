@@ -272,6 +272,8 @@ const sqlBuilder = new SQLBuilder<typeof columns[number], any>(db.query.bind(db)
 const { sql, params } = sqlBuilder.select().from(tableName).buildQuery();
 // Can also use array destructuring
 const [sql, params] = sqlBuilder.select().from(tableName).buildQuery();
+// BuildQuery also accepts an options object. it will return complete query with format. params will be empty array if format is true
+const [sql, params] = sqlBuilder.select().from(tableName).buildQuery({ format: true });
 
 // run your own query function if you don't connect DB by DatabaseManagement class from this package
 const result = await db.query(sql, params);

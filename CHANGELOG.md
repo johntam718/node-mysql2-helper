@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.2] - 2024-09-30
+### Added
+- Added `options` parameter to `buildQuery` method to support query formatting.
+- Made `queryParts` private to prevent accidental exposure. `queryParts` is an internal structure used to build SQL queries and should not be accessed directly.
+
 ## [1.0.1] - 2024-09-27
 ### Fixed
 - Fixed dist folder not aligned with the source code.
