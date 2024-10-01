@@ -201,6 +201,11 @@ export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> 
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
+type LikePatternType = {
+    contains?: string;
+    startsWith?: string;
+    endsWith?: string;
+};
 type EqualOperator = {
     '='?: any;
 };
@@ -220,10 +225,19 @@ type GreaterThanOrEqualOperator = {
     '>='?: any;
 };
 type LikeOperator = {
-    'LIKE'?: any;
+    'LIKE'?: LikePatternType | string;
+};
+type NotLikeOperator = {
+    'NOT_LIKE'?: LikePatternType | string;
+};
+type RegexpOperator = {
+    'REGEXP'?: string;
 };
 type InOperator = {
     'IN'?: any[];
+};
+type NotInOperator = {
+    'NOT_IN'?: any[];
 };
 type BetweenOperator = {
     'BETWEEN'?: [any, any];
@@ -237,7 +251,7 @@ type IsNullOperator = {
 type IsNotNullOperator = {
     ['IS_NOT_NULL']?: true;
 };
-type OperatorCondition = Prettify<EqualOperator & NotEqualOperator & LessThanOperator & LessThanOrEqualOperator & GreaterThanOperator & GreaterThanOrEqualOperator & LikeOperator & InOperator & BetweenOperator & NotBetweenOperator & IsNullOperator & IsNotNullOperator>;
+type OperatorCondition = Prettify<EqualOperator & NotEqualOperator & LessThanOperator & LessThanOrEqualOperator & GreaterThanOperator & GreaterThanOrEqualOperator & LikeOperator & NotLikeOperator & RegexpOperator & InOperator & NotInOperator & BetweenOperator & NotBetweenOperator & IsNullOperator & IsNotNullOperator>;
 export type SimpleCondition<ColumnKeys extends string> = {
     [key in ColumnKeys]?: OperatorCondition | string | number;
 } & {

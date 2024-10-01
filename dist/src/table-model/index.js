@@ -100,7 +100,7 @@ class TableModel {
     }
     createInsert(options) {
         const SQLBuild = this.initSQLBuilder();
-        return (data) => {
+        return (data = {}) => {
             this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
             const structuredData = { ...data };
             this.removeExtraFieldsAndLog(structuredData);
@@ -110,7 +110,7 @@ class TableModel {
     createDelete() {
         const SQLBuild = this.initSQLBuilder();
         return (values) => {
-            const { where } = values || {};
+            const { where = {} } = values || {};
             this.throwEmptyObjectError(where, this.printPrefixMessage('CreateDelete :: Where condition cannot be empty'));
             return SQLBuild.deleteFrom(this.tableName)
                 .where(where);
@@ -123,7 +123,7 @@ class TableModel {
         };
     }
     findOne(values) {
-        const { where, orderBy = [], fields } = values || {};
+        const { where = {}, orderBy = [], fields } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.select(fields || "*")
@@ -145,7 +145,7 @@ class TableModel {
             .offset(offset || -1); // -1 means no offset
     }
     updateOne(values) {
-        const { data, where, options } = values || {};
+        const { data = {}, where = {}, options } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
         this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
         if (this.primaryKey in data)
@@ -156,7 +156,10 @@ class TableModel {
             .limit(1);
     }
     updateAll(values) {
-        const { data, where = {}, options } = values || {};
+        const { data = {}, where = {}, options } = values || {};
+        this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
+        if (where)
+            this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
         if (this.primaryKey in data)
             delete data[this.primaryKey]; // For javascript type checking
         const SQLBuild = this.initSQLBuilder();
@@ -176,7 +179,7 @@ class TableModel {
         return SQLBuild.insert(this.tableName, structuredData, options);
     }
     removeOne(values) {
-        const { where, orderBy = [] } = values || {};
+        const { where = {}, orderBy = [] } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('RemoveOne :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.deleteFrom(this.tableName)
@@ -185,7 +188,7 @@ class TableModel {
             .limit(1);
     }
     remove(values) {
-        const { where = {}, orderBy = [] } = values || {};
+        const { where = {} } = values || {};
         // Prevent accidental deletion of all records
         this.throwEmptyObjectError(where, this.printPrefixMessage('Remove :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
@@ -193,9 +196,8 @@ class TableModel {
             .where(where);
     }
     patchSingleField(values) {
-        const { where, value, options, patchField } = values || {};
-        // const { patchField } = options || {};
-        if (!patchField) {
+        const { where = {}, value, options, patchField } = values || {};
+        if (typeof patchField !== 'string' || patchField.length === 0) {
             throw new Error(this.printPrefixMessage('PatchSingleField :: Patch field is required'));
         }
         this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
@@ -205,7 +207,7 @@ class TableModel {
             .where(where);
     }
     softDeleteOne(values) {
-        const { where, value, options } = values || {};
+        const { where = {}, value, options } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDeleteOne :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         const data = { [options?.deleteField || this.centralFields.isDeletedField]: value };
@@ -214,7 +216,7 @@ class TableModel {
             .limit(1);
     }
     softDelete(values) {
-        const { where, value, options } = values || {};
+        const { where = {}, value, options } = values || {};
         this.throwEmptyObjectError(where, this.printPrefixMessage('SoftDelete :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         const data = { [options?.deleteField || this.centralFields.isDeletedField]: value };
