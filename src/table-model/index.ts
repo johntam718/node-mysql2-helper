@@ -134,11 +134,14 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   createInsert(options?: InsertOptions) {
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return (data: ColumnData<ColumnKeys> = {}) => {
-      this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
-      const structuredData = { ...data };
+    return (data: InsertValue<ColumnKeys>) => {
+      if (Array.isArray(data)) {
+        this.throwEmptyArrayError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
+      } else {
+        this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
+      }
+      const structuredData = Array.isArray(data) ? data : [data];
       this.removeExtraFieldsAndLog(structuredData);
-
       return SQLBuild.insert(this.tableName, structuredData, options);
     }
   }
