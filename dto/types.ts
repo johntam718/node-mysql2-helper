@@ -171,14 +171,23 @@ export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> 
 
 // --------------------------------------------------QUERY BUILDER END--------------------------------------------------
 
+type LikePatternType = {
+  contains?: string;
+  startsWith?: string;
+  endsWith?: string;
+};
+
 type EqualOperator = { '='?: any };
 type NotEqualOperator = { '!='?: any };
 type LessThanOperator = { '<'?: any };
 type LessThanOrEqualOperator = { '<='?: any };
 type GreaterThanOperator = { '>'?: any };
 type GreaterThanOrEqualOperator = { '>='?: any };
-type LikeOperator = { 'LIKE'?: any };
+type LikeOperator = { 'LIKE'?: LikePatternType | string };
+type NotLikeOperator = { 'NOT_LIKE'?: LikePatternType | string };
+type RegexpOperator = { 'REGEXP'?: string };
 type InOperator = { 'IN'?: any[] };
+type NotInOperator = { 'NOT_IN'?: any[] };
 type BetweenOperator = { 'BETWEEN'?: [any, any] };
 type NotBetweenOperator = { 'NOT_BETWEEN'?: [any, any] };
 type IsNullOperator = { 'IS_NULL'?: true };
@@ -191,7 +200,10 @@ type OperatorCondition = Prettify<EqualOperator &
   GreaterThanOperator &
   GreaterThanOrEqualOperator &
   LikeOperator &
+  NotLikeOperator &
+  RegexpOperator &
   InOperator &
+  NotInOperator &
   BetweenOperator &
   NotBetweenOperator &
   IsNullOperator &

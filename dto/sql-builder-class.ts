@@ -166,28 +166,72 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
 
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
             for (const operator in value) {
-              // Handle IN, BETWEEN, NOT_BETWEEN, =, !=, <, <=, >, >=, LIKE, IS_NULL, IS_NOT_NULL
+              // Handle IN
               if (operator === 'IN' && Array.isArray(value[operator])) {
                 if (value[operator].length === 0) {
                   throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
                 }
                 clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
                 localParams.push(...value[operator]);
+                // Handle NOT_IN
+              } else if (operator === 'NOT_IN' && Array.isArray(value[operator])) {
+                if (value[operator].length === 0) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: NOT_IN :: condition must be a non-empty array`));
+                }
+                clauses.push(`${sanitizedKey} NOT IN (${value[operator].map(() => '?').join(', ')})`);
+                localParams.push(...value[operator]);
+                // Handle BETWEEN
               } else if (operator === 'BETWEEN' && Array.isArray(value[operator])) {
                 if (value[operator].length !== 2) {
                   throw new Error(this.printPrefixMessage(`processConditions :: BETWEEN :: condition must be an array with exactly 2 elements`));
                 }
                 clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
                 localParams.push(value[operator][0], value[operator][1]);
+                // Handle NOT_BETWEEN
               } else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator])) {
                 if (value[operator].length !== 2) {
                   throw new Error(this.printPrefixMessage(`processConditions :: NOT_BETWEEN :: condition must be an array with exactly 2 elements`));
                 }
                 clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
                 localParams.push(value[operator][0], value[operator][1]);
-              } else if (['=', '!=', '<', '<=', '>', '>=', 'LIKE'].includes(operator)) {
+                // Handle =, !=, <, <=, >, >=
+              } else if (['=', '!=', '<', '<=', '>', '>='].includes(operator)) {
                 clauses.push(`${sanitizedKey} ${operator} ?`);
                 localParams.push(value[operator]);
+                // Handle LIKE, NOT LIKE
+              } else if (operator === 'LIKE' || operator === 'NOT_LIKE') {
+                const patternType = value[operator];
+                const clauseString = `${sanitizedKey} ${operator === 'NOT_LIKE' ? 'NOT LIKE' : 'LIKE'} ?`;
+                if (typeof patternType === 'string') {
+                  // Direct string pattern
+                  clauses.push(clauseString);
+                  localParams.push(patternType);
+                } else if (typeof patternType === 'object' && patternType !== null) {
+                  switch (true) {
+                    case !!patternType.contains:
+                      clauses.push(clauseString);
+                      localParams.push(`%${patternType.contains}%`);
+                      break;
+                    case !!patternType.startsWith:
+                      clauses.push(clauseString);
+                      localParams.push(`${patternType.startsWith}%`);
+                      break;
+                    case !!patternType.endsWith:
+                      clauses.push(clauseString);
+                      localParams.push(`%${patternType.endsWith}`);
+                      break;
+                    default:
+                      throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Invalid pattern type`));
+                  }
+                }
+                // Handle REGEXP
+              } else if (operator === "REGEXP") {
+                if (typeof value[operator] !== 'string' || value[operator].length === 0) {
+                  throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be a non empty string`));
+                }
+                clauses.push(`${sanitizedKey} REGEXP ?`);
+                localParams.push(value[operator]);
+                // Handle IS_NULL, IS_NOT_NULL
               } else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
                 if (value[operator] !== true) {
                   throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be true`));
