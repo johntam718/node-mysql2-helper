@@ -22,7 +22,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         data: Omit<ColumnData<ColumnKeys>, PrimaryKey>;
         where: WhereCondition<ColumnKeys>;
     }) => import("../../dto/types").WhereQueryBuilder<ColumnKeys, ResultSetHeader>;
-    createInsert(options?: InsertOptions): (data?: ColumnData<ColumnKeys>) => import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
+    createInsert(options?: InsertOptions): (data: InsertValue<ColumnKeys>) => import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
     createDelete(): (values: {
         where: WhereCondition<ColumnKeys>;
     }) => import("../../dto/types").WhereQueryBuilder<ColumnKeys, ResultSetHeader>;
