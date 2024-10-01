@@ -26,9 +26,8 @@ A MySQL query builder and helper for Node.js.
   - [.update() Method](#update-method)
   - [.delete() Method](#delete-method)
 - [TableModel Class](#tablemodel-class)
-  - [Using TableModel Class](#using-tablemodel-class)
-    - [1. Using DatabaseManagement to Connect to the Database](#1-using-databasemanagement-to-connect-to-the-database)
-    - [2. Using the TableModel Class Directly](#2-using-the-tablemodel-class-directly)
+  - [1. Using DatabaseManagement to Connect to the Database](#1-using-databasemanagement-to-connect-to-the-database)
+  - [2. Using the TableModel Class Directly](#2-using-the-tablemodel-class-directly)
   - [Methods](#methods)
     - [createSelect](#createselect)
     - [createInsert](#createinsert)
@@ -107,7 +106,7 @@ DatabaseManagement.connectSingleDatabase("mainDB", {
 
 // model folder
 // user.ts
-const mainDB = DatabaseManagement.getInstance("mainDB"); // referring to the identifierName
+const mainDB = DatabaseManagement.getInstance("mainDB"); // get instance of mainDB
 const columns = sqlHelper.createColumns([
   "user_id",
   "ctime",
@@ -198,9 +197,13 @@ const mainDBInstance = DatabaseManagement.getInstance("mainDB");
 const analyticsDBInstance = DatabaseManagement.getInstance("analyticsDB");
 ```
 
-## SQLBuilder Class
+# SQLBuilder Class
 
-The **`SQLBuilder`** class provides a way to build SQL queries for various operations SELECT, INSERT, UPDATE, DELETE, etc.
+The **`SQLBuilder`** class provides a way to build SQL queries for various operations such as SELECT, INSERT, UPDATE, DELETE, etc.
+
+To generate the final SQL query and its parameters, you must call the `.buildQuery()` method at the end of your query-building process.
+
+If the `SQLBuilder` constructor is provided with a `queryFn`, you can use the `.executeQuery()` method to execute the query directly.
 
 #### Example
 
@@ -363,6 +366,36 @@ const [sql, params] = sqlBuilder
   .buildQuery();
 ```
 
+```typescript
+// AND example
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account")
+  .where({
+    email: "123@gmail.com",
+    is_active: 1,
+  })
+  .buildQuery();
+
+// alternative AND example
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account")
+  .where({
+    AND: [{ email: { LIKE: "%@gmail.com" } }, { username: "jane" }],
+  });
+```
+
+```typescript
+// OR example
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account")
+  .where({
+    OR: [{ email: { LIKE: "%@gmail.com" } }, { username: "jane" }],
+  });
+```
+
 Supported Operators:
 
 - `=`
@@ -371,8 +404,11 @@ Supported Operators:
 - `<`
 - `>=`
 - `<=`
-- `LIKE`
-- `IN`
+- `LIKE`,
+- `NOT_LIKE`
+- `REGEXP`,
+- `IN`,
+- `NOT_IN`
 - `BETWEEN`
 - `NOT_BETWEEN`
 - `IS_NULL`
@@ -486,6 +522,8 @@ const [sql, params] = sqlBuilder
 
 The **`TableModel`** class is a wrapper around the **`SQLBuilder`** class that provides a way to build and execute common database operations like SELECT, INSERT, UPDATE, DELETE, etc.
 
+To generate the final SQL query and its parameters, you must call the `.buildQuery()` method at the end of your query-building process. If you have provided a query function, you can use the `.executeQuery()` method to execute the query directly.
+
 There are two ways to define and use the `TableModel` class:
 
 ### 1. Using DatabaseManagement to Connect to the Database
@@ -507,6 +545,23 @@ const userModel = new TableModel({
 ```
 
 ### Methods
+
+The `TableModel` class provides the following methods to perform database operations:
+
+| Method             | Description                                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSelect`     | Creates a SELECT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.  |
+| `createInsert`     | Creates an INSERT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
+| `createUpdate`     | Creates an UPDATE query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
+| `createDelete`     | Creates a DELETE query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.  |
+| `createCount`      | Creates a COUNT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.   |
+| `findOne`          | Finds a single record.                                                                                                                                              |
+| `findAll`          | Finds multiple records.                                                                                                                                             |
+| `remove`           | Removes records based on conditions.                                                                                                                                |
+| `removeOne`        | Removes a single record based on conditions.                                                                                                                        |
+| `patchSingleField` | Updates a single field in records based on conditions.                                                                                                              |
+| `softDeleteOne`    | Soft deletes a single record based on conditions.                                                                                                                   |
+| `softDelete`       | Soft deletes multiple records based on conditions.                                                                                                                  |
 
 The `TableModel` class provides the following methods to perform database operations.
 
@@ -539,7 +594,7 @@ const result = await insertUser({
 ```typescript
 const updateUser = userModel.createUpdate();
 const result = await updateUser({
-  data: { nickname: "John Doe 1234" },
+  data: { nickname: "John Doe 2" },
   where: { user_id: { "<=": 5 } },
 })
   .limit(2)
@@ -550,7 +605,7 @@ const result = await updateUser({
 
 ```typescript
 const deleteUser = userModel.createDelete();
-const result = await deleteUser({ where: { user_id: 1234 } })
+const result = await deleteUser({ where: { user_id: 1 } })
   .limit(1)
   .executeQuery();
 ```
@@ -577,18 +632,11 @@ The following table lists common parameters that many methods accept. Note that 
 
 #### findOne
 
-````typescript
-const [user] = await userModel
-  .findOne({ where: { user_id: 1 } })
-  .executeQuery();
-
-#### findOne
-
 ```typescript
 const [user] = await userModel
   .findOne({ where: { user_id: 1 } })
   .executeQuery();
-````
+```
 
 #### findAll
 
@@ -620,7 +668,7 @@ const updatedOneUser = await userModel
 ```typescript
 const updateAllUsers = await userModel
   .updateAll({
-    data: { nickname: "John Doe 1234" },
+    data: { nickname: "John Doe" },
     where: { user_id: { "<=": 5 } },
     options: { enableTimestamps: true, utimeField: "utime" },
   })
@@ -667,7 +715,7 @@ const deletedAllUsers = await userModel
 const patchedActiveField = await userModel
   .patchSingleField({
     patchField: "is_active",
-    where: { user_id: 1234 },
+    where: { user_id: 1 },
     value: 1,
     options: { enableTimestamps: true, utimeField: "utime" },
   })
@@ -679,7 +727,7 @@ const patchedActiveField = await userModel
 ```typescript
 const softDeletedUser = await userModel
   .softDeleteOne({
-    where: { user_id: 1234 },
+    where: { user_id: 1 },
     value: 1,
     options: {
       enableTimestamps: true,
