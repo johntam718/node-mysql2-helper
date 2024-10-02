@@ -1,10 +1,8 @@
 # node-mysql-query-utils
 
-A MySQL query builder and helper for Node.js.
+A MySQL helper to provide ways to connect to the database, build SQL queries, and perform common database operations for Node.js.
 
 [![npm version](https://badge.fury.io/js/node-mysql-query-utils.svg)](https://badge.fury.io/js/node-mysql-query-utils)
-
-<!-- [![npm downloads](https://img.shields.io/npm/dm/node-mysql-query-utils.svg)](https://www.npmjs.com/package/node-mysql-query-utils) -->
 
 ## Table of contents
 
@@ -13,7 +11,8 @@ A MySQL query builder and helper for Node.js.
 - [Overview](#overview)
 - [Quick Start](#quick-start)
 - [DatabaseManagement](#databasemanagement)
-  - [Example](#example)
+  - [Single database connection](#single-database-connection)
+  - [Multiple database connections](#multiple-database-connections)
 - [SQLBuilder Class](#sqlbuilder-class)
   - [Example](#example)
   - [.select() Method](#select-method)
@@ -24,7 +23,10 @@ A MySQL query builder and helper for Node.js.
   - [.limit() and .offset() Methods](#limit-and-offset-methods)
   - [.insert() Method](#insert-method)
   - [.update() Method](#update-method)
+    - [Update Options](#update-options)
   - [.delete() Method](#delete-method)
+  - [.buildQuery() Method](#buildquery-method)
+  - [.executeQuery() Method](#executequery-method)
 - [TableModel Class](#tablemodel-class)
   - [1. Using DatabaseManagement to Connect to the Database](#1-using-databasemanagement-to-connect-to-the-database)
   - [2. Using the TableModel Class Directly](#2-using-the-tablemodel-class-directly)
@@ -33,17 +35,18 @@ A MySQL query builder and helper for Node.js.
     - [createInsert](#createinsert)
     - [createDelete](#createdelete)
     - [createCount](#createcount)
-    - [findOne](#findone)
-    - [findAll](#findall)
-    - [updateOne](#updateone)
-    - [updateAll](#updateall)
-    - [insertRecord](#insertrecord)
-    - [removeOne](#removeone)
-    - [remove](#remove)
-    - [patchSingleField](#patchsinglefield)
-    - [softDeleteOne](#softdeleteone)
-    - [softDelete](#softdelete)
-  - [Example Usage](#example-usage)
+    - [Common Parameters](#common-parameters)
+      - [findOne](#findone)
+      - [findAll](#findall)
+      - [updateOne](#updateone)
+      - [updateAll](#updateall)
+      - [insertRecord](#insertrecord)
+      - [removeOne](#removeone)
+      - [remove](#remove)
+      - [patchSingleField](#patchsinglefield)
+      - [softDeleteOne](#softdeleteone)
+      - [softDelete](#softdelete)
+- [Changelog](#changelog)
 
 ## Introduction
 
@@ -92,17 +95,26 @@ DatabaseManagement.connectMultipleDatabases([
       password: "password",
       database: "test_db",
     },
+    options: {
+      verbose: true, // optional, default is true. If true, will log all queries to console
+    },
   },
 ]);
 
 //or
 
-DatabaseManagement.connectSingleDatabase("mainDB", {
-  host: "localhost",
-  user: "root",
-  password: "password",
-  database: "test_db",
-});
+DatabaseManagement.connectSingleDatabase(
+  "mainDB",
+  {
+    host: "localhost",
+    user: "root",
+    password: "password",
+    database: "test_db",
+  },
+  {
+    verbose: true, // optional, default is true. If true, will log all queries to console
+  }
+);
 
 // model folder
 // user.ts
@@ -138,9 +150,7 @@ export const userAccountModel = mainDB.createTableModel({
 
 The **`DatabaseManagement`** class is a singleton class that helps manage database connections. It supports connecting to single or multiple databases and provides a way to retrieve instances of the connections.
 
-#### Example Usage
-
-Single database connection
+#### Single database connection
 
 ```typescript
 import { DatabaseManagement } from "node-mysql-query-utils";
@@ -161,7 +171,7 @@ DatabaseManagement.connectSingleDatabase("mainDB", config);
 const dbInstance = DatabaseManagement.getInstance("mainDB");
 ```
 
-Multiple database connections
+#### Multiple database connections
 
 ```typescript
 import { DatabaseManagement } from "node-mysql-query-utils";
@@ -213,9 +223,6 @@ import { SQLBuilder, sqlHelper } from "node-mysql-query-utils";
 // Define the table name
 const tableName = "user_account";
 
-// Javascript
-const sqlBuilder = new SQLBuilder();
-
 const columns = sqlHelper.createColumns([
   "user_id",
   "ctime",
@@ -229,6 +236,9 @@ const columns = sqlHelper.createColumns([
 
 // typescript
 const sqlBuilder = new SQLBuilder<(typeof columns)[number]>();
+
+// Javascript - no type hinting, but still works. Suggest using TableModel class for better type hinting if using Javascript
+const sqlBuilder = new SQLBuilder();
 
 // Accept QueryFunction for SQLBuilder to enable query execution
 const sqlBuilder = new SQLBuilder(db.query.bind(db)); // Optional: put your own query function here if you don't connect DB by DatabaseManagement class from this package
@@ -481,6 +491,7 @@ const [sql, params] = sqlBuilder
   .update(
     "user_account",
     { email: "123@gmail.com" },
+    // Options
     {
       enableTimestamps = false, // if true, will add utime to update object
       utimeField = "utime",
@@ -497,6 +508,17 @@ const [sql, params] = sqlBuilder
   .where({ user_id: 1 })
   .buildQuery();
 ```
+
+### Update Options
+
+The `update` method accepts options parameter with the following properties:
+
+| Property           | Type    | Description                                                                           |
+| ------------------ | ------- | ------------------------------------------------------------------------------------- |
+| `enableTimestamps` | boolean | (Optional) If true, will add `utime` to the update object. Default is false.          |
+| `primaryKey`       | string  | (Optional) The primary key field name. For removing primaryKey in update object       |
+| `utimeField`       | string  | (Optional) The field name for the update timestamp. Default is `utime`.               |
+| `utimeValue`       | any     | (Optional) The value for the update timestamp. Default is the current Unix timestamp. |
 
 ### .delete() Method
 
@@ -518,6 +540,44 @@ const [sql, params] = sqlBuilder
   .buildQuery();
 ```
 
+### .buildQuery() Method
+
+```typescript
+// Build query with format
+const sqlBuilder = new SQLBuilder<(typeof columns)[number]>();
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account")
+  .buildQuery({ format: true });
+```
+
+### .executeQuery() Method
+
+```typescript
+// Execute query
+const sqlBuilder = new SQLBuilder<(typeof columns)[number]>();
+const result = await sqlBuilder.select().from("user_account").executeQuery();
+```
+
+### Without calling .buildQuery() or .executeQuery()
+
+```typescript
+// Without calling .buildQuery() or .executeQuery() as end of query building
+const sqlBuilder = new SQLBuilder<(typeof columns)[number]>();
+const result = sqlBuilder.select().from("user_account");
+
+// result will be an instance of SQLBuilder
+// SQLBuilder {
+//   queryFn: [Function: bound executeQuery] AsyncFunction,
+//   message: 'Call .buildQuery() or .executeQuery() to get the result'
+// }
+
+// To get the result, call .buildQuery() or .executeQuery()
+const [sql, params] = result.buildQuery();
+// or
+const result = await result.executeQuery(); // if query function is provided in SQLBuilder
+```
+
 ## TableModel Class
 
 The **`TableModel`** class is a wrapper around the **`SQLBuilder`** class that provides a way to build and execute common database operations like SELECT, INSERT, UPDATE, DELETE, etc.
@@ -528,7 +588,7 @@ There are two ways to define and use the `TableModel` class:
 
 ### 1. Using DatabaseManagement to Connect to the Database
 
-Developers who use the `DatabaseManagement` class to connect to the database can refer to the [Quick Start](#quick-start) example. This method involves connecting to multiple databases using the `DatabaseManagement` class and then retrieving instances to create table models.
+Connect database by `DatabaseManagement` class can refer to the [Quick Start](#quick-start) example. This method involves connecting to multiple databases using the `DatabaseManagement` class and then retrieving instances to create table models.
 
 ### 2. Using the TableModel Class Directly
 
@@ -549,19 +609,19 @@ const userModel = new TableModel({
 The `TableModel` class provides the following methods to perform database operations:
 
 | Method             | Description                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `createSelect`     | Creates a SELECT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.  |
 | `createInsert`     | Creates an INSERT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
 | `createUpdate`     | Creates an UPDATE query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
 | `createDelete`     | Creates a DELETE query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.  |
 | `createCount`      | Creates a COUNT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.   |
-| `findOne`          | Finds a single record.                                                                                                                                              |
-| `findAll`          | Finds multiple records.                                                                                                                                             |
-| `remove`           | Removes records based on conditions.                                                                                                                                |
-| `removeOne`        | Removes a single record based on conditions.                                                                                                                        |
-| `patchSingleField` | Updates a single field in records based on conditions.                                                                                                              |
-| `softDeleteOne`    | Soft deletes a single record based on conditions.                                                                                                                   |
-| `softDelete`       | Soft deletes multiple records based on conditions.                                                                                                                  |
+| `findOne`          | Finds a single record. Returns an instance of the `SQLBuilder` class with the `findOne` method configured.                                                          |
+| `findAll`          | Finds multiple records. Returns an instance of the `SQLBuilder` class with the `findAll` method configured.                                                         |
+| `remove`           | Removes records based on conditions. Returns an instance of the `SQLBuilder` class with the `remove` method configured.                                             |
+| `removeOne`        | Removes a single record based on conditions. Returns an instance of the `SQLBuilder` class with the `removeOne` method configured.                                  |
+| `patchSingleField` | Updates a single field in records based on conditions. Returns an instance of the `SQLBuilder` class with the `patchSingleField` method configured.                 |
+| `softDeleteOne`    | Soft deletes a single record based on conditions. Returns an instance of the `SQLBuilder` class with the `softDeleteOne` method configured.                         |
+| `softDelete`       | Soft deletes multiple records based on conditions. Returns an instance of the `SQLBuilder` class with the `softDelete` method configured.                           |     |
 
 The `TableModel` class provides the following methods to perform database operations.
 
@@ -622,13 +682,14 @@ const countResult = await countUser("user_id")
 
 The following table lists common parameters that many methods accept. Note that some parameters may be available for certain methods while others may not, as each method performs different operations. TypeScript will provide hints for the available parameters for each method.
 
-| Parameter | Type   | Description                                                                             |
-| --------- | ------ | --------------------------------------------------------------------------------------- |
-| `fields`  | Array  | An array of strings specifying the columns to select.                                   |
-| `where`   | Object | An object specifying the conditions for the query.                                      |
-| `orderBy` | Array  | An array of objects specifying the columns to order by and the direction (ASC or DESC). |
-| `limit`   | Number | A number specifying the maximum number of rows to return.                               |
-| `offset`  | Number | A number specifying the offset of the first row to return.                              |
+| Parameter | Type   | Description                                                                                                    |
+| --------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| `fields`  | Array  | An array of strings specifying the columns to select.                                                          |
+| `where`   | Object | An object specifying the conditions for the query.                                                             |
+| `orderBy` | Array  | An array of objects specifying the columns to order by and the direction (ASC or DESC).                        |
+| `limit`   | Number | A number specifying the maximum number of rows to return.                                                      |
+| `offset`  | Number | A number specifying the offset of the first row to return.                                                     |
+| `options` | Object | An object specifying additional options for the query. Can be referenced in [Update Options](#update-options). |
 
 #### findOne
 
@@ -753,3 +814,7 @@ const softDeletedUsers = await userModel
   })
   .executeQuery();
 ```
+
+## Changelog
+
+Detailed changes for each version are documented in the [CHANGELOG.md](https://github.com/johntam718/node-mysql2-helper/blob/main/CHANGELOG.md) file.
