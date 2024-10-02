@@ -14,7 +14,13 @@
     "mysql2",
     "query",
     "utils",
-    "node"
+    "node",
+    "nodejs",
+    "query-builder",
+    "query-builder-mysql",
+    "mysql-query-builder",
+    "mysql-query-utils",
+    "mysql-query-helper"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
