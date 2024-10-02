@@ -478,10 +478,25 @@ const [sql, params] = sqlBuilder
       utimeField = "utime",
       ctimeValue = Math.floor(Date.now() / 1000), // default is current unix timestamp
       utimeValue = Math.floor(Date.now() / 1000), // default is current unix timestamp
+      insertIgnore = false, // if true, will add IGNORE to the insert query
     }
   )
   .buildQuery();
 ```
+
+### Insert Options
+
+The `insert` method accepts options parameter with the following properties:
+
+| Property           | Type    | Description                                                                           |
+| ------------------ | ------- | ------------------------------------------------------------------------------------- |
+| `enableTimestamps` | boolean | (Optional) If true, will add `ctime` and `utime` to the insert object. Default is false. |
+| `ctimeField`       | string  | (Optional) The field name for the create timestamp. Default is `ctime`.               |
+| `utimeField`       | string  | (Optional) The field name for the update timestamp. Default is `utime`.               |
+| `ctimeValue`       | any     | (Optional) The value for the create timestamp. Default is the current Unix timestamp. |
+| `utimeValue`       | any     | (Optional) The value for the update timestamp. Default is the current Unix timestamp. |
+| `insertIgnore`     | boolean | (Optional) If true, will add `IGNORE` to the insert query. Default is false.          |
+
 
 ### .update() Method
 
