@@ -148,7 +148,7 @@ export interface OffsetQueryBuilder<QueryReturnType> {
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> {
-  set?(values: ColumnData<ColumnKeys>): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
+  set?(values: UpdateValue<ColumnKeys>): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   buildQuery(options?: BuildQueryOptions): BuildQueryResult;
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
