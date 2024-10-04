@@ -15,7 +15,8 @@ import {
   CentralFields,
   TableModelConstructor,
   SelectFields,
-  InsertValue
+  InsertValue,
+  UpdateValue
 } from "@dto/types";
 import logger from "@lib/logger";
 import type {
@@ -120,14 +121,14 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   createUpdate(options?: UpdateOptions) {
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return (values: {
-      data: Omit<ColumnData<ColumnKeys>, PrimaryKey>,
+      data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
       where: WhereCondition<ColumnKeys>,
     }) => {
       const { data = {}, where = {} } = values || {};
       this.throwEmptyObjectError(where, this.printPrefixMessage('CreateUpdate :: Where condition cannot be empty'));
       this.throwEmptyObjectError(data, this.printPrefixMessage('CreateUpdate :: Data cannot be empty'));
       if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data];
-      return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
+      return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
         .where(where);
     }
   }
@@ -197,7 +198,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   }
 
   updateOne(values: Prettify<{
-    data: Omit<ColumnData<ColumnKeys>, PrimaryKey>,
+    data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
     where: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
@@ -206,13 +207,13 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
+    return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
       .where(where)
       .limit(1) as QueryAction<ResultSetHeader>;
   }
 
   updateAll(values: Prettify<{
-    data: Omit<ColumnData<ColumnKeys>, PrimaryKey>,
+    data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
     where?: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
@@ -221,7 +222,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data as ColumnData<ColumnKeys>, options)
+    return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
       .where(where) as QueryAction<ResultSetHeader>;
   }
 

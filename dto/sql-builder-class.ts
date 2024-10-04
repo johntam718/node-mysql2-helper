@@ -23,6 +23,7 @@ import {
   UpdateOptions,
   UpdateQueryBuilder,
   UpdateQueryBuilderWithoutSet,
+  UpdateValue,
   WhereCondition,
   WhereQueryBuilder
 } from '@dto/types';
@@ -375,9 +376,9 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     return this;
   }
   update(table: string): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
-  update(table: string, values: ColumnData<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-  update(table: string, values: ColumnData<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-  update(table: string, values?: ColumnData<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilder<ColumnKeys, QueryReturnType> | UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType> {
+  update(table: string, values: UpdateValue<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values: UpdateValue<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+  update(table: string, values?: UpdateValue<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilder<ColumnKeys, QueryReturnType> | UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType> {
     this.checkTableName(table, 'update');
     const {
       enableTimestamps = false,
@@ -410,10 +411,42 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     return this;
   }
 
-  set(values: ColumnData<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType> {
+  set(values: UpdateValue<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType> {
     this.throwEmptyObjectError(values, this.printPrefixMessage('Set :: Values cannot be empty'));
-    const setClauses = Object.keys(values).map(key => `?? = ?`);
-    const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
+
+    // Both increment and decrement cannot be provided for the same field
+    Object.entries(values).forEach(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        if ('increment' in value && 'decrement' in value) {
+          throw new Error(`Set :: Both increment and decrement provided for field ${key}`);
+        }
+      }
+    });
+
+    // const setClauses = Object.keys(values).map(key => `?? = ?`);
+    // const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
+    const setClauses = Object.keys(values).map(key => {
+      const value = values[key as ColumnKeys];
+      if (typeof value === 'object' && value !== null) {
+        if ('increment' in value) {
+          return `?? = ?? + ?`;
+        } else if ('decrement' in value) {
+          return `?? = ?? - ?`;
+        }
+      }
+      return `?? = ?`;
+    });
+
+    const setParams = Object.entries(values).flatMap(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        if ('increment' in value) {
+          return [key, key, value.increment];
+        } else if ('decrement' in value) {
+          return [key, key, value.decrement];
+        }
+      }
+      return [key, value];
+    });
     this.#queryParts.set.sql = `SET ${setClauses.join(', ')}`;
     this.#queryParts.set.params = setParams;
     return this;
