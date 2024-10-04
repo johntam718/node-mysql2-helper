@@ -356,8 +356,39 @@ class SQLBuilder {
     }
     set(values) {
         this.throwEmptyObjectError(values, this.printPrefixMessage('Set :: Values cannot be empty'));
-        const setClauses = Object.keys(values).map(key => `?? = ?`);
-        const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
+        // Both increment and decrement cannot be provided for the same field
+        Object.entries(values).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+                if ('increment' in value && 'decrement' in value) {
+                    throw new Error(`Set :: Both increment and decrement provided for field ${key}`);
+                }
+            }
+        });
+        // const setClauses = Object.keys(values).map(key => `?? = ?`);
+        // const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
+        const setClauses = Object.keys(values).map(key => {
+            const value = values[key];
+            if (typeof value === 'object' && value !== null) {
+                if ('increment' in value) {
+                    return `?? = ?? + ?`;
+                }
+                else if ('decrement' in value) {
+                    return `?? = ?? - ?`;
+                }
+            }
+            return `?? = ?`;
+        });
+        const setParams = Object.entries(values).flatMap(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+                if ('increment' in value) {
+                    return [key, key, value.increment];
+                }
+                else if ('decrement' in value) {
+                    return [key, key, value.decrement];
+                }
+            }
+            return [key, value];
+        });
         this.#queryParts.set.sql = `SET ${setClauses.join(', ')}`;
         this.#queryParts.set.params = setParams;
         return this;

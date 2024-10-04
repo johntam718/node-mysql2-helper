@@ -94,6 +94,14 @@ export type OrderByField<T> = {
 };
 export type GroupByField<T> = T | (string & {}) | T[];
 export type ColumnData<T extends string> = Partial<Record<T, any>>;
+export type IncrementDecrementValue = {
+    increment: number;
+    decrement?: never;
+} | {
+    decrement: number;
+    increment?: never;
+};
+export type UpdateValue<T extends string> = Partial<Record<T, IncrementDecrementValue | string | number | null>>;
 export type InsertValue<T extends string> = ColumnData<T> | ColumnData<T>[];
 export type InsertOptions = {
     insertIgnore?: boolean;

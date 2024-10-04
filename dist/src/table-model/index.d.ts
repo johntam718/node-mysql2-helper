@@ -1,5 +1,5 @@
 import { SQLBuilder } from "../../dto/sql-builder-class";
-import { ColumnData, InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields, InsertValue } from "../../dto/types";
+import { InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields, InsertValue, UpdateValue } from "../../dto/types";
 import type { QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
 export declare class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
     tableName: string;
@@ -19,7 +19,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         fields?: SelectFields<ColumnKeys>;
     }) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;
     createUpdate(options?: UpdateOptions): (values: {
-        data: Omit<ColumnData<ColumnKeys>, PrimaryKey>;
+        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
         where: WhereCondition<ColumnKeys>;
     }) => import("../../dto/types").WhereQueryBuilder<ColumnKeys, ResultSetHeader>;
     createInsert(options?: InsertOptions): (data: InsertValue<ColumnKeys>) => import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
@@ -38,12 +38,12 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         orderBy?: OrderByField<ColumnKeys>[];
     } & LimitOffset>): import("../../dto/types").OffsetQueryBuilder<RowDataPacket[]>;
     updateOne(values: Prettify<{
-        data: Omit<ColumnData<ColumnKeys>, PrimaryKey>;
+        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
         where: WhereCondition<ColumnKeys>;
         options?: UpdateOptions;
     }>): QueryAction<ResultSetHeader>;
     updateAll(values: Prettify<{
-        data: Omit<ColumnData<ColumnKeys>, PrimaryKey>;
+        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
         where?: WhereCondition<ColumnKeys>;
         options?: UpdateOptions;
     }>): QueryAction<ResultSetHeader>;

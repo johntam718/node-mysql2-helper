@@ -1,4 +1,4 @@
-import { BuildQueryOptions, ColumnData, DeleteQueryBuilder, FromQueryBuilder, GroupByField, GroupByQueryBuilder, InsertOptions, InsertQueryBuilder, InsertValue, JoinQueryBuilder, JoinType, LimitQueryBuilder, OffsetQueryBuilder, OrderByField, OrderByQueryBuilder, QueryFunction, SelectFields, SelectQueryBuilder, SetQueryBuilder, UpdateOptions, UpdateQueryBuilder, UpdateQueryBuilderWithoutSet, WhereCondition, WhereQueryBuilder } from './types';
+import { BuildQueryOptions, DeleteQueryBuilder, FromQueryBuilder, GroupByField, GroupByQueryBuilder, InsertOptions, InsertQueryBuilder, InsertValue, JoinQueryBuilder, JoinType, LimitQueryBuilder, OffsetQueryBuilder, OrderByField, OrderByQueryBuilder, QueryFunction, SelectFields, SelectQueryBuilder, SetQueryBuilder, UpdateOptions, UpdateQueryBuilder, UpdateQueryBuilderWithoutSet, UpdateValue, WhereCondition, WhereQueryBuilder } from './types';
 export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     #private;
     queryFn?: QueryFunction;
@@ -28,9 +28,9 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     limit(limit: number): LimitQueryBuilder<QueryReturnType>;
     offset(offset: number): OffsetQueryBuilder<QueryReturnType>;
     update(table: string): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
-    update(table: string, values: ColumnData<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-    update(table: string, values: ColumnData<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
-    set(values: ColumnData<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType>;
+    update(table: string, values: UpdateValue<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+    update(table: string, values: UpdateValue<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
+    set(values: UpdateValue<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType>;
     insert(table: string, values: InsertValue<ColumnKeys>, options?: InsertOptions): InsertQueryBuilder<QueryReturnType>;
     deleteFrom(table: string): DeleteQueryBuilder<ColumnKeys, QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): {
