@@ -179,6 +179,12 @@ class SQLBuilder {
                                     localParams.push(patternType);
                                 }
                                 else if (typeof patternType === 'object' && patternType !== null) {
+                                    // Validation step to ensure only one of contains, startsWith, or endsWith is present
+                                    const patternKeys = ['contains', 'startsWith', 'endsWith'];
+                                    const presentKeys = patternKeys.filter(key => key in patternType);
+                                    if (presentKeys.length > 1) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Only one of 'contains', 'startsWith', or 'endsWith' can be provided`));
+                                    }
                                     switch (true) {
                                         case !!patternType.contains:
                                             clauses.push(clauseString);

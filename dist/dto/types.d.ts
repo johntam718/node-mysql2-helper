@@ -210,9 +210,17 @@ export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> 
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 type LikePatternType = {
-    contains?: string;
-    startsWith?: string;
-    endsWith?: string;
+    contains: string;
+    startsWith?: never;
+    endsWith?: never;
+} | {
+    startsWith: string;
+    contains?: never;
+    endsWith?: never;
+} | {
+    endsWith: string;
+    contains?: never;
+    startsWith?: never;
 };
 type EqualOperator = {
     '='?: any;
