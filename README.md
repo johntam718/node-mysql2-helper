@@ -365,13 +365,25 @@ const [sql, params] = sqlBuilder
   .select()
   .from("user_account")
   .where({
-    email: "123@gmail.com", // exact match
+    email: "123@gmail.com", // equal to '
+    email: { "=": "123@gmail.com" }, // equal to '
+    email: { "!=": "123@gmail.com" }, // not equal to
     user_id: { ">": 123 },
     user_id: { "<": 123 },
-    nickname: { IS_NOT_NULL: true }, // must be true
+    user_id: { ">=": 123 },
+    user_id: { "<=": 123 },
     is_active: { BETWEEN: [0, 1] },
+    is_active: { NOT_BETWEEN: [0, 1] },
     status: { IN: [1, 2, 3, 4] },
-    "u.user_id": { "!=": 1 }, // assume alias is set in From's second parameters
+    status: { NOT_IN: [1, 2, 3, 4] },
+    nickname: { IS_NOT_NULL: true }, // must be true, false will throw error
+    nickname: { IS_NULL: true }, // must be true, false will throw error
+    nickname: { LIKE: { contains: 'name' } }, // contains 'name'
+    nickname: { NOT_LIKE: { startsWith: 'name' } }, // not starts with 'name'
+    nickname: { LIKE: { endsWith: 'name' } }, // ends with 'name'
+    nickname: { LIKE: '%_123' } // custom pattern
+    nickname: { REGEXP: '^[a-zA-Z0-9]*$' } // custom pattern
+    "u.user_id": { "!=": 1 }, // assume alias is set in From's second parameters (e.g. .from("user_account", "u"))
   })
   .buildQuery();
 ```
@@ -520,6 +532,13 @@ const [sql, params] = sqlBuilder
 const [sql, params] = sqlBuilder
   .update("user_account")
   .set({ email: "123@gmail.com" })
+  .where({ user_id: 1 })
+  .buildQuery();
+
+// Increment and Decrement (Added in version v1.0.4)
+const [sql, params] = sqlBuilder
+  .update("user_account")
+  .set({ balance: { increment: 100 } })
   .where({ user_id: 1 })
   .buildQuery();
 ```

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4] - 2024-10-07
+### Added
+- Support for increment and decrement operations in the `update` method of the `SQLBuilder` class.
+  - Allows specifying `{ increment: number }` or `{ decrement: number }` for fields to increment or decrement their values.
+  - Throws an error if both `increment` and `decrement` are provided for the same field.
+- Enhanced `LIKE` and `NOT LIKE` operators handle in the `SQLBuilder` class.
+  - Throws an error if more than one of `contains`, `startsWith`, or `endsWith` are provided for the same field.
+
 ## [1.0.3] - 2024-10-01
 ### Improved
 - Enhanced parameter checking and error messages for `TableModel` class return methods.
