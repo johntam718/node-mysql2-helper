@@ -643,7 +643,7 @@ const userModel = new TableModel({
 The `TableModel` class provides the following methods to perform database operations:
 
 | Method             | Description                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `createSelect`     | Creates a SELECT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query.  |
 | `createInsert`     | Creates an INSERT query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
 | `createUpdate`     | Creates an UPDATE query. Returns a function that returns an instance of the `SQLBuilder` class. You can chain the `SQLBuilder` methods to build your desired query. |
@@ -652,10 +652,10 @@ The `TableModel` class provides the following methods to perform database operat
 | `findOne`          | Finds a single record. Returns an instance of the `SQLBuilder` class with the `findOne` method configured.                                                          |
 | `findAll`          | Finds multiple records. Returns an instance of the `SQLBuilder` class with the `findAll` method configured.                                                         |
 | `remove`           | Removes records based on conditions. Returns an instance of the `SQLBuilder` class with the `remove` method configured.                                             |
-| `removeOne`        | Removes a single record based on conditions. Returns an instance of the `SQLBuilder` class with the `removeOne` method configured.                                  |
+| `removeOne`        | Removes a single record based on conditions. Returns an instance of the `SQLBuilder` class with the `removeOne` method configured.                                   |
 | `patchSingleField` | Updates a single field in records based on conditions. Returns an instance of the `SQLBuilder` class with the `patchSingleField` method configured.                 |
 | `softDeleteOne`    | Soft deletes a single record based on conditions. Returns an instance of the `SQLBuilder` class with the `softDeleteOne` method configured.                         |
-| `softDelete`       | Soft deletes multiple records based on conditions. Returns an instance of the `SQLBuilder` class with the `softDelete` method configured.                           |     |
+| `softDelete`       | Soft deletes multiple records based on conditions. Returns an instance of the `SQLBuilder` class with the `softDelete` method configured.                           |
 
 The `TableModel` class provides the following methods to perform database operations.
 
