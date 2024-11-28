@@ -286,6 +286,17 @@ const [sql, params] = sqlBuilder
 
 // Select a single column
 const [sql, params] = sqlBuilder.select("user_id").from(tableName).buildQuery();
+
+// Select with raw SQL
+const [sql, params] = sqlBuilder
+  .select([{       
+    raw: 'CASE WHEN expire_time < FROM_UNIXTIME(?) THEN 1 ELSE 0 END',
+    alias: 'is_expired',
+    params: [dayjs().unix()],
+  }])
+  .from(tableName)
+  .buildQuery();
+
 ```
 
 ### .from() Method

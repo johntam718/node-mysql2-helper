@@ -1,8 +1,9 @@
 import { SQLBuilder } from "../../dto/sql-builder-class";
 import { InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields, InsertValue, UpdateValue } from "../../dto/types";
-import type { QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 export declare class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
     tableName: string;
+    private tableAlias?;
     private primaryKey;
     private columns;
     private centralFields;
@@ -14,7 +15,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
     private throwEmptyArrayError;
     private printPrefixMessage;
     private removeExtraFieldsAndLog;
-    initSQLBuilder<T extends ColumnKeys, QueryReturnType extends QueryResult>(): SQLBuilder<T, QueryReturnType>;
+    initSQLBuilder<T extends ColumnKeys, QueryReturnType = any>(): SQLBuilder<T, QueryReturnType>;
     createSelect(): (values?: {
         fields?: SelectFields<ColumnKeys>;
     }) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;
@@ -31,7 +32,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
         fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[];
         where: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];
-    }): import("../../dto/types").LimitQueryBuilder<RowDataPacket[]>;
+    }): import("../../dto/types").LimitQueryBuilder<{ [key in (string & {}) | ColumnKeys]?: any; }[]>;
     findAll(values?: Prettify<{
         fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[];
         where?: WhereCondition<ColumnKeys>;

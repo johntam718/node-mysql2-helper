@@ -8,12 +8,14 @@ const sql_builder_class_1 = require("../../dto/sql-builder-class");
 const logger_1 = __importDefault(require("../../lib/logger"));
 class TableModel {
     tableName;
+    tableAlias;
     primaryKey;
     columns;
     centralFields;
     queryFn;
     constructor(config) {
         this.tableName = config.tableName;
+        this.tableAlias = config.tableAlias;
         this.primaryKey = config.primaryKey;
         this.columns = config.columns;
         const defaultCentralFields = {
@@ -80,15 +82,15 @@ class TableModel {
         return new sql_builder_class_1.SQLBuilder(this.queryFn);
     }
     createSelect() {
-        const SQLBuild = this.initSQLBuilder();
         return (values) => {
+            const SQLBuild = this.initSQLBuilder();
             const { fields } = values || {};
-            return SQLBuild.select(fields || "*").from(this.tableName);
+            return SQLBuild.select(fields || "*").from(this.tableName, this.tableAlias);
         };
     }
     createUpdate(options) {
-        const SQLBuild = this.initSQLBuilder();
         return (values) => {
+            const SQLBuild = this.initSQLBuilder();
             const { data = {}, where = {} } = values || {};
             this.throwEmptyObjectError(where, this.printPrefixMessage('CreateUpdate :: Where condition cannot be empty'));
             this.throwEmptyObjectError(data, this.printPrefixMessage('CreateUpdate :: Data cannot be empty'));
@@ -99,8 +101,8 @@ class TableModel {
         };
     }
     createInsert(options) {
-        const SQLBuild = this.initSQLBuilder();
         return (data) => {
+            const SQLBuild = this.initSQLBuilder();
             if (Array.isArray(data)) {
                 this.throwEmptyArrayError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
             }
@@ -113,8 +115,8 @@ class TableModel {
         };
     }
     createDelete() {
-        const SQLBuild = this.initSQLBuilder();
         return (values) => {
+            const SQLBuild = this.initSQLBuilder();
             const { where = {} } = values || {};
             this.throwEmptyObjectError(where, this.printPrefixMessage('CreateDelete :: Where condition cannot be empty'));
             return SQLBuild.deleteFrom(this.tableName)
@@ -122,9 +124,9 @@ class TableModel {
         };
     }
     createCount() {
-        const SQLBuild = this.initSQLBuilder();
         return (field = '*', alias) => {
-            return SQLBuild.count(field, alias).from(this.tableName);
+            const SQLBuild = this.initSQLBuilder();
+            return SQLBuild.count(field, alias).from(this.tableName, this.tableAlias);
         };
     }
     findOne(values) {
@@ -132,7 +134,7 @@ class TableModel {
         this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.select(fields || "*")
-            .from(this.tableName)
+            .from(this.tableName, this.tableAlias)
             .where(where)
             .orderBy(orderBy)
             .limit(1);
@@ -143,7 +145,7 @@ class TableModel {
             this.throwEmptyObjectError(where, this.printPrefixMessage('FindAll :: Where condition cannot be empty'));
         const SQLBuild = this.initSQLBuilder();
         return SQLBuild.select(fields || "*")
-            .from(this.tableName)
+            .from(this.tableName, this.tableAlias)
             .where(where)
             .orderBy(orderBy)
             .limit(limit || -1) // -1 means no limit

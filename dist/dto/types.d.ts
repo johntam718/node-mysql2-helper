@@ -70,6 +70,7 @@ export type SQL_CONSTRUCTORS = {
 };
 export type TableModelConstructor<ColumnKeys, PrimaryKey> = {
     tableName: string;
+    tableAlias?: string;
     primaryKey: PrimaryKey;
     columns: ColumnKeys;
     centralFields?: CentralFields;
@@ -82,12 +83,17 @@ export type CentralFields = {
     isDeletedField?: string;
     statusField?: string;
 };
+export type RawField = {
+    raw: string;
+    alias?: string;
+    params?: any[];
+};
 export type FieldAlias<T extends string> = {
     [key in T]?: string;
-} & {
-    [key: string]: string;
 };
-export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T>)[];
+export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T> | RawField | string & {})[] | {
+    [key in T]?: string;
+} & RawField;
 export type OrderByField<T> = {
     field: T | (string & {});
     direction?: 'ASC' | 'DESC';

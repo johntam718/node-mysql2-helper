@@ -1,11 +1,27 @@
 # Changelog
 
+## [1.0.5] - 2024-10-08
+### Added
+- **Raw SQL Support in Fields:**
+  - Introduced the ability to include raw SQL expressions within the `fields` parameter of the `SQLBuilder` class.
+  - Allows users to specify complex SQL snippets using the `RawField` type, enabling greater flexibility in query construction.
+  - Supports adding aliases and custom parameters for raw SQL expressions.
+
+- **Default Table Alias in `TableModel` Class:**
+  - Introduced the `tableNameAlias` property in the `TableModel` constructor to set a default alias for the table.
+  
+### Fixed
+- **`createXXXXXX()` Methods in `TableModel` Class:**
+  - Resolved an issue where all `createXXXXXX()` methods (`createSelect`, `createUpdate`, `createInsert`, etc.) were using the same instance of `SQLBuilder`.
+  - Ensured that each method initializes a new instance of `SQLBuilder`, preventing SQL query misconstruction and ensuring thread safety.
+  - Improved reliability of SQL query generation by isolating builder instances per operation.
+
 ## [1.0.4] - 2024-10-07
 ### Added
 - Support for increment and decrement operations in the `update` method of the `SQLBuilder` class.
   - Allows specifying `{ increment: number }` or `{ decrement: number }` for fields to increment or decrement their values.
   - Throws an error if both `increment` and `decrement` are provided for the same field.
-- Enhanced `LIKE` and `NOT LIKE` operators handle in the `SQLBuilder` class.
+- Enhanced `LIKE` and `NOT LIKE` operators handling in the `SQLBuilder` class.
   - Throws an error if more than one of `contains`, `startsWith`, or `endsWith` are provided for the same field.
 
 ## [1.0.3] - 2024-10-01
