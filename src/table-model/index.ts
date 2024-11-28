@@ -160,8 +160,8 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   }
 
   createCount() {
-    const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
     return (field: ColumnKeys | (string & {}) | "*" = '*', alias?: string) => {
+      const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
       return SQLBuild.count(field, alias).from(this.tableName);
     }
   }
