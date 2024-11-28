@@ -35,6 +35,7 @@ export type SQL_CONSTRUCTORS = {
 
 export type TableModelConstructor<ColumnKeys, PrimaryKey> = {
   tableName: string,
+  tableAlias?: string,
   primaryKey: PrimaryKey,
   columns: ColumnKeys,
   centralFields?: CentralFields
@@ -61,7 +62,7 @@ export type SelectFields<T extends string> =
   | '*'
   | string & {}
   | T
-  | (T | FieldAlias<T> | RawField)[]
+  | (T | FieldAlias<T> | RawField | string & {})[]
   | { [key in T]?: string } & RawField;
 
 export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
