@@ -117,102 +117,84 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
   //     return { sql: 'SELECT *', params: [] };
   //   }
   // }
+
   private processFields<T extends string>(
     fields: SelectFields<T>
   ): { sql: string; params: any[] } {
-    const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
+    const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Pattern to match table.* (e.g., c.*)
 
     if (typeof fields === 'string') {
       if (fields === '*') {
-        // Select all fields
+        // Case 1: Select all fields
         return { sql: 'SELECT *', params: [] };
       } else if (wildcardPattern.test(fields)) {
-        // Select specific one field with wildcard e.g. table.*
+        // Case 2: Select all fields from a specific table (e.g., c.*)
         return { sql: `SELECT ${fields}`, params: [] };
       } else {
-        // Select specific one field
+        // Case 3: Select a single specific field with placeholder
         return { sql: 'SELECT ??', params: [fields] };
       }
     } else if (Array.isArray(fields) && fields.length > 0) {
-      // Select multiple fields
-      const fieldClauses = fields.map((field) => {
-        if (typeof field === 'string') {
-          return wildcardPattern.test(field) ? field : '??';
-        }
-        // Handle RawField e.g. { raw: 'COUNT(*)', alias: 'total' }
-        else if ('raw' in field && typeof field.raw === 'string') {
-          let clause = field.raw;
-          if (field.alias) {
-            clause += ' AS ??';
-          }
-          return clause;
-        }
-        // Handle object mapping fields e.g. { name: 'alias' }
-        else if (typeof field === 'object') {
-          return Object.entries(field)
-            .map(([col, alias]) => (alias ? '?? AS ??' : '??'))
-            .join(', ');
-        }
-        return '';
-      }).filter(clause => clause !== '');
-
-      // Flatten the field definitions
-      let fieldParams: any[] = [];
+      // Handling an array of fields
+      const fieldClauses: string[] = []; // Array to accumulate SQL fragments for fields
+      const fieldParams: any[] = []; // Array to accumulate parameters corresponding to placeholders
 
       fields.forEach((field) => {
         if (typeof field === 'string') {
-          if (!wildcardPattern.test(field)) {
+          if (wildcardPattern.test(field)) {
+            // Field is in the format table.*
+            fieldClauses.push(field);
+          } else {
+            // Regular field with placeholder
+            fieldClauses.push('??');
             fieldParams.push(field);
           }
-        }
-        // Handle RawField parameters
-        else if ('raw' in field && typeof field.raw === 'string') {
-          if (field.params && Array.isArray(field.params)) {
-            fieldParams = [...field.params, ...fieldParams];
-          }
-          if (field.alias) {
-            fieldParams.push(field.alias);
-          }
-        }
-        // Handle object mapping fields e.g. { name: 'alias' }
-        else if (typeof field === 'object') {
+        } else if (isFieldAlias(field)) {
+          // Field with an alias (e.g., { email: 'email_address' })
           Object.entries(field).forEach(([col, alias]) => {
-            if (alias) {
-              fieldParams.push(col, alias);
-            } else {
-              fieldParams.push(col);
-            }
+            fieldClauses.push('?? AS ??'); // SQL fragment with two placeholders
+            fieldParams.push(col, alias); // Corresponding parameters
           });
+        } else if (isRawField(field)) {
+          // Raw SQL field (e.g., { raw: 'COUNT(*)', alias: 'total' })
+          let rawField = field.raw;
+          if (field.alias) {
+            // Append alias if provided
+            rawField += ` AS \`${field.alias}\``;
+          }
+          fieldClauses.push(rawField); // Insert raw SQL directly without placeholders
+
+          if (field.params) {
+            // Append raw field parameters to the main params array
+            fieldParams.push(...field.params);
+          }
         }
       });
 
-      return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams };
+      // Combine all field clauses into a single SELECT statement
+      const sql = `SELECT ${fieldClauses.join(', ')}`;
+      return { sql, params: fieldParams };
     } else if (typeof fields === 'object' && fields !== null) {
-      // Handle single RawField object
-      if ('raw' in fields && typeof fields.raw === 'string') {
-        let clause = fields.raw;
+      // Handling a single field object
+      if (isRawField(fields)) {
+        // Single RawField object
+        let rawField = fields.raw;
         if (fields.alias) {
-          clause += ' AS ??';
+          // Append alias if provided
+          rawField += ` AS \`${fields.alias}\``;
         }
-        let params: any[] = [];
-        if (fields.params && Array.isArray(fields.params)) {
-          params = [...fields.params];
-        }
-        if (fields.alias) {
-          params.push(fields.alias);
-        }
-        return { sql: `SELECT ${clause}`, params };
-      } else {
-        // Handle object mapping fields
-        const fieldClauses = Object.entries(fields).map(([col, alias]) =>
-          alias ? '?? AS ??' : '??'
-        );
-        const fieldParams = Object.entries(fields).flatMap(([col, alias]) =>
-          alias ? [col, alias] : [col]
-        );
-        return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams };
+        const params = fields.params ? [...fields.params] : []; // Clone params if they exist
+        return { sql: `SELECT ${rawField}`, params };
       }
+
+      // Single FieldAlias object (e.g., { email: 'email_address' })
+      const aliases = Object.entries(fields)
+        .map(([col, alias]) => `?? AS ??`)
+        .join(', ');
+      const params = Object.entries(fields).flatMap(([col, alias]) => [col, alias]);
+      return { sql: `SELECT ${aliases}`, params };
     } else {
+      // Default case: Select all fields
       return { sql: 'SELECT *', params: [] };
     }
   }
@@ -654,43 +636,95 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     params: any[];
     [Symbol.iterator](): Iterator<any>
   } {
-    const { format = false } = options || {};
-    const sql = [
-      // Reminder: The order of these parts matter
-      this.#queryParts.count.sql,
-      this.#queryParts.select.sql,
-      this.#queryParts.update.sql,
-      this.#queryParts.insert.sql,
-      this.#queryParts.delete.sql,
-      this.#queryParts.set.sql,
-      this.#queryParts.from.sql,
-      this.#queryParts.join.sql,
-      this.#queryParts.where.sql,
-      this.#queryParts.groupBy.sql,
-      this.#queryParts.orderBy.sql,
-      this.#queryParts.limit.sql,
-      this.#queryParts.offset.sql,
-    ].filter(Boolean).join(' ').trim();
+    let sql = '';
+    let params: any[] = [];
 
-    const params = [
-      // Reminder: The order of these parts matter
-      ...(this.#queryParts.count.params || []),
-      ...(this.#queryParts.select.params || []),
-      ...(this.#queryParts.update.params || []),
-      ...(this.#queryParts.insert.params || []),
-      ...(this.#queryParts.delete.params || []),
-      ...(this.#queryParts.set.params || []),
-      ...(this.#queryParts.from.params || []),
-      ...(this.#queryParts.join.params || []),
-      ...(this.#queryParts.where.params || []),
-      ...(this.#queryParts.groupBy.params || []),
-      ...(this.#queryParts.orderBy.params || []),
-      ...(this.#queryParts.limit.params || []),
-      ...(this.#queryParts.offset.params || []),
-    ];
+    // Handle COUNT clause
+    if (this.#queryParts.count.sql) {
+      sql += this.#queryParts.count.sql;
+      params.push(...this.#queryParts.count.params);
+    }
+
+    // Handle SELECT clause
+    if (this.#queryParts.select.sql) {
+      sql += this.#queryParts.select.sql;
+      params.push(...this.#queryParts.select.params);
+    }
+
+    // Handle UPDATE clause
+    if (this.#queryParts.update.sql) {
+      sql += this.#queryParts.update.sql;
+      params.push(...this.#queryParts.update.params);
+    }
+
+    // Handle INSERT clause
+    if (this.#queryParts.insert.sql) {
+      sql += this.#queryParts.insert.sql;
+      params.push(...this.#queryParts.insert.params);
+    }
+
+    // Handle DELETE clause
+    if (this.#queryParts.delete.sql) {
+      sql += this.#queryParts.delete.sql;
+      params.push(...this.#queryParts.delete.params);
+    }
+
+    // Handle SET clause
+    if (this.#queryParts.set.sql) {
+      sql += ` ${this.#queryParts.set.sql}`;
+      params.push(...this.#queryParts.set.params);
+    }
+
+    // Handle FROM clause
+    if (this.#queryParts.from.sql) {
+      sql += ` ${this.#queryParts.from.sql}`;
+      params.push(...this.#queryParts.from.params);
+    }
+
+    // Handle JOIN clauses
+    if (this.#queryParts.join.sql) {
+      sql += ` ${this.#queryParts.join.sql}`;
+      params.push(...this.#queryParts.join.params);
+    }
+
+    // Handle WHERE clause
+    if (this.#queryParts.where.sql) {
+      sql += ` ${this.#queryParts.where.sql}`;
+      params.push(...this.#queryParts.where.params);
+    }
+
+    // Handle GROUP BY clause
+    if (this.#queryParts.groupBy.sql) {
+      sql += ` ${this.#queryParts.groupBy.sql}`;
+      params.push(...this.#queryParts.groupBy.params);
+    }
+
+    // Handle ORDER BY clause
+    if (this.#queryParts.orderBy.sql) {
+      sql += ` ${this.#queryParts.orderBy.sql}`;
+      params.push(...this.#queryParts.orderBy.params);
+    }
+
+    // Handle LIMIT clause
+    if (this.#queryParts.limit.sql) {
+      sql += ` ${this.#queryParts.limit.sql}`;
+      params.push(...this.#queryParts.limit.params);
+    }
+
+    // Handle OFFSET clause
+    if (this.#queryParts.offset.sql) {
+      sql += ` ${this.#queryParts.offset.sql}`;
+      params.push(...this.#queryParts.offset.params);
+    }
+
+    // Format SQL if required
+    if (options?.format) {
+      sql = _format(sql, params);
+      params = [];
+    }
     return {
-      sql: format ? _format(sql, params) : sql,
-      params: format ? [] : params,
+      sql,
+      params: params,
       // For allowing array destructuring
       [Symbol.iterator](): Iterator<any> {
         let index = 0;
