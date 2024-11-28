@@ -55,14 +55,14 @@ export type RawField = {
   params?: any[];
 };
 
-export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };;
+export type FieldAlias<T extends string> = { [key in T]?: string }
+// export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };
 export type SelectFields<T extends string> =
   | '*'
   | string & {}
   | T
-  | (T | FieldAlias<T>)[]
-  | RawField
-  | RawField[];
+  | (T | FieldAlias<T> | RawField)[]
+  | { [key in T]?: string } & RawField;
 
 export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
 export type GroupByField<T> = T | (string & {}) | T[];
