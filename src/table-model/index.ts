@@ -26,6 +26,7 @@ import type {
 } from "mysql2";
 export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
   tableName: string;
+  private tableAlias?: string;
   private primaryKey: PrimaryKey;
   private columns: ColumnKeys[];
   private centralFields: CentralFields;
@@ -33,6 +34,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   constructor(config: TableModelConstructor<ColumnKeys[], PrimaryKey>) {
     this.tableName = config.tableName;
+    this.tableAlias = config.tableAlias;
     this.primaryKey = config.primaryKey;
     this.columns = config.columns;
     const defaultCentralFields: CentralFields = {
@@ -114,7 +116,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     }) => {
       const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
       const { fields } = values || {};
-      return SQLBuild.select(fields || "*").from(this.tableName)
+      return SQLBuild.select(fields || "*").from(this.tableName, this.tableAlias);
     }
   }
 
@@ -162,7 +164,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   createCount() {
     return (field: ColumnKeys | (string & {}) | "*" = '*', alias?: string) => {
       const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
-      return SQLBuild.count(field, alias).from(this.tableName);
+      return SQLBuild.count(field, alias).from(this.tableName, this.tableAlias);
     }
   }
 
@@ -175,7 +177,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     this.throwEmptyObjectError(where, this.printPrefixMessage('FindOne :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, { [key in ColumnKeys | (string & {})]?: any }[]>();
     return SQLBuild.select(fields || "*")
-      .from(this.tableName)
+      .from(this.tableName, this.tableAlias)
       .where(where)
       .orderBy(orderBy)
       .limit(1);
@@ -190,7 +192,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('FindAll :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
     return SQLBuild.select(fields || "*")
-      .from(this.tableName)
+      .from(this.tableName, this.tableAlias)
       .where(where as WhereCondition<ColumnKeys>)
       .orderBy(orderBy)
       .limit(limit || -1) // -1 means no limit
