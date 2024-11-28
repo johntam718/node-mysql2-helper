@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.5] - 2024-10-08
+## [1.0.5] - 2024-11-28
 ### Added
 - **Raw SQL Support in Fields:**
   - Introduced the ability to include raw SQL expressions within the `fields` parameter of the `SQLBuilder` class.
