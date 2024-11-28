@@ -49,8 +49,21 @@ export type CentralFields = {
   statusField?: string;
 }
 
+export type RawField = {
+  raw: string;
+  alias?: string;
+  params?: any[];
+};
+
 export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };;
-export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldAlias<T>)[];
+export type SelectFields<T extends string> =
+  | '*'
+  | string & {}
+  | T
+  | (T | FieldAlias<T>)[]
+  | RawField
+  | RawField[];
+
 export type OrderByField<T> = { field: T | (string & {}), direction?: 'ASC' | 'DESC' };
 export type GroupByField<T> = T | (string & {}) | T[];
 

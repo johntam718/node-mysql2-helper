@@ -16,6 +16,7 @@ import {
   OrderByField,
   OrderByQueryBuilder,
   QueryFunction,
+  RawField,
   SelectFields,
   SelectQueryBuilder,
   SetQueryBuilder,
@@ -28,6 +29,15 @@ import {
   WhereQueryBuilder
 } from '@dto/types';
 import { format as _format } from 'mysql2';
+
+// Type Guards
+function isRawField<T extends string>(field: any): field is RawField {
+  return field && typeof field === 'object' && 'raw' in field && typeof field.raw === 'string';
+}
+
+function isFieldAlias<T extends string>(field: any): field is FieldAlias<T> {
+  return field && typeof field === 'object' && !('raw' in field);
+}
 
 export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
   #queryParts: SQL_CONSTRUCTORS;
@@ -69,7 +79,47 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     return Math.floor(Date.now() / 1000); // Unix timestamp
   }
 
-  private processFields<T extends string>(fields: SelectFields<T>): { sql: string, params: string[] } {
+  // private processFields<T extends string>(fields: SelectFields<T>): { sql: string, params: string[] } {
+  //   const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
+
+  //   if (typeof fields === 'string') {
+  //     if (fields === '*') {
+  //       // Select all fields
+  //       return { sql: 'SELECT *', params: [] };
+  //     } else if (wildcardPattern.test(fields)) {
+  //       // Select specific one field with wildcard e.g. table.*
+  //       return { sql: `SELECT ${fields}`, params: [] };
+  //     } else {
+  //       // Select specific one field
+  //       return { sql: 'SELECT ??', params: [fields] };
+  //     }
+  //   } else if (Array.isArray(fields) && fields.length > 0) {
+  //     // Select multiple fields
+  //     const fieldClauses = fields.map((field) => {
+  //       if (typeof field === 'string') {
+  //         return wildcardPattern.test(field) ? field : '??';
+  //       } else if (typeof field === 'object') {
+  //         return Object.entries(field).map(([col, alias]) => alias ? '?? AS ??' : '??').join(', ');
+  //       }
+  //     });
+
+  //     // Flatten the field definitions
+  //     const fieldParams = fields.flatMap((field) => {
+  //       if (typeof field === 'string') {
+  //         return wildcardPattern.test(field) ? [] : [field];
+  //       } else if (typeof field === 'object') {
+  //         return Object.entries(field).flatMap(([col, alias]) => alias ? [col, alias] : [col]);
+  //       }
+  //     });
+
+  //     return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams as string[] || [] };
+  //   } else {
+  //     return { sql: 'SELECT *', params: [] };
+  //   }
+  // }
+  private processFields<T extends string>(
+    fields: SelectFields<T>
+  ): { sql: string; params: any[] } {
     const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
 
     if (typeof fields === 'string') {
@@ -88,21 +138,80 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
       const fieldClauses = fields.map((field) => {
         if (typeof field === 'string') {
           return wildcardPattern.test(field) ? field : '??';
-        } else if (typeof field === 'object') {
-          return Object.entries(field).map(([col, alias]) => alias ? '?? AS ??' : '??').join(', ');
         }
-      });
+        // Handle RawField e.g. { raw: 'COUNT(*)', alias: 'total' }
+        else if ('raw' in field && typeof field.raw === 'string') {
+          let clause = field.raw;
+          if (field.alias) {
+            clause += ' AS ??';
+          }
+          return clause;
+        }
+        // Handle object mapping fields e.g. { name: 'alias' }
+        else if (typeof field === 'object') {
+          return Object.entries(field)
+            .map(([col, alias]) => (alias ? '?? AS ??' : '??'))
+            .join(', ');
+        }
+        return '';
+      }).filter(clause => clause !== '');
 
       // Flatten the field definitions
-      const fieldParams = fields.flatMap((field) => {
+      let fieldParams: any[] = [];
+
+      fields.forEach((field) => {
         if (typeof field === 'string') {
-          return wildcardPattern.test(field) ? [] : [field];
-        } else if (typeof field === 'object') {
-          return Object.entries(field).flatMap(([col, alias]) => alias ? [col, alias] : [col]);
+          if (!wildcardPattern.test(field)) {
+            fieldParams.push(field);
+          }
+        }
+        // Handle RawField parameters
+        else if ('raw' in field && typeof field.raw === 'string') {
+          if (field.params && Array.isArray(field.params)) {
+            fieldParams = [...field.params, ...fieldParams];
+          }
+          if (field.alias) {
+            fieldParams.push(field.alias);
+          }
+        }
+        // Handle object mapping fields e.g. { name: 'alias' }
+        else if (typeof field === 'object') {
+          Object.entries(field).forEach(([col, alias]) => {
+            if (alias) {
+              fieldParams.push(col, alias);
+            } else {
+              fieldParams.push(col);
+            }
+          });
         }
       });
 
-      return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams as string[] || [] };
+      return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams };
+    } else if (typeof fields === 'object' && fields !== null) {
+      // Handle single RawField object
+      if ('raw' in fields && typeof fields.raw === 'string') {
+        let clause = fields.raw;
+        if (fields.alias) {
+          clause += ' AS ??';
+        }
+        let params: any[] = [];
+        if (fields.params && Array.isArray(fields.params)) {
+          params = [...fields.params];
+        }
+        if (fields.alias) {
+          params.push(fields.alias);
+        }
+        return { sql: `SELECT ${clause}`, params };
+      } else {
+        // Handle object mapping fields
+        const fieldClauses = Object.entries(fields).map(([col, alias]) =>
+          alias ? '?? AS ??' : '??'
+        );
+        const fieldParams = Object.entries(fields).flatMap(([col, alias]) =>
+          alias ? [col, alias] : [col]
+        );
+        return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams };
+      }
     } else {
       return { sql: 'SELECT *', params: [] };
     }
@@ -128,21 +237,51 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     return `[SQLBuilder] :: ${message}`;
   }
 
-  private uniqueFields<T extends string>(fields: (T | FieldAlias<T>)[]) {
-    const seen = new Map<string, T | FieldAlias<T>>();
+  // private uniqueFields<T extends string>(fields: (T | FieldAlias<T>)[]) {
+  //   const seen = new Map<string, T | FieldAlias<T>>();
 
-    fields.forEach(field => {
+  //   fields.forEach(field => {
+  //     if (typeof field === 'string') {
+  //       seen.set(field, field);
+  //     } else if (typeof field === 'object') {
+  //       const key = Object.keys(field)[0];
+  //       const value = field[key as T];
+  //       const fieldString = `${key}:${value}`;
+  //       if (!seen.has(fieldString)) {
+  //         seen.set(fieldString, field);
+  //       }
+  //     }
+  //   });
+  //   return Array.from(seen.values());
+  // }
+  private uniqueFields<T extends string>(
+    fields: Array<T | FieldAlias<T> | RawField>
+  ): Array<T | FieldAlias<T> | RawField> {
+    const seen = new Map<string, T | FieldAlias<T> | RawField>();
+
+    fields.forEach((field) => {
       if (typeof field === 'string') {
-        seen.set(field, field);
-      } else if (typeof field === 'object') {
+        // Handle string fields
+        if (!seen.has(field)) {
+          seen.set(field, field);
+        }
+      } else if (isRawField<T>(field)) {
+        // Handle RawField
+        const key = field.alias ? `${field.raw} AS ${field.alias}` : field.raw;
+        if (!seen.has(key)) {
+          seen.set(key, field);
+        }
+      } else if (isFieldAlias<T>(field)) {
+        // Handle FieldAlias
         const key = Object.keys(field)[0];
-        const value = field[key as T];
-        const fieldString = `${key}:${value}`;
+        const alias = field[key as T];
+        const fieldString = alias ? `${key}:${alias}` : key;
         if (!seen.has(fieldString)) {
           seen.set(fieldString, field);
         }
       }
     });
+
     return Array.from(seen.values());
   }
 
@@ -298,7 +437,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
 
   select(fields: SelectFields<ColumnKeys> = "*"): SelectQueryBuilder<ColumnKeys, QueryReturnType> {
     const _fields = Array.isArray(fields) ? this.uniqueFields<ColumnKeys>(fields) : fields;
-    const { sql, params } = this.processFields<ColumnKeys>(_fields);
+    const { sql, params } = this.processFields<ColumnKeys>(_fields as SelectFields<ColumnKeys>);
     this.#queryParts.select.sql = sql;
     this.#queryParts.select.params = params;
     return this
