@@ -109,7 +109,7 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
   }
 
   private checkEmptyObject(obj: Object) {
-    return Object.keys(obj).length === 0;
+    return Object.keys(obj || {}).length === 0;
   }
 
   private checkTableName(tableName: string, caller?: string) {
@@ -408,9 +408,8 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     this.#queryParts.update.sql = `UPDATE ??`;
     this.#queryParts.update.params = [table];
 
-    this.throwEmptyObjectError(values as Object, this.printPrefixMessage('Update :: Data cannot be empty'));
-
     if (values) {
+      this.throwEmptyObjectError(values as Object, this.printPrefixMessage('Update :: Data cannot be empty'));
       this.set(values);
       return this as UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
     }
