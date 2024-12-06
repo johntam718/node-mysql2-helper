@@ -3,9 +3,9 @@ import { InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, Update
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 export declare class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
     tableName: string;
-    private tableAlias?;
-    private primaryKey;
-    private columns;
+    tableAlias?: string;
+    primaryKey: PrimaryKey;
+    columns: ColumnKeys[];
     private centralFields;
     private queryFn?;
     constructor(config: TableModelConstructor<ColumnKeys[], PrimaryKey>);
@@ -16,6 +16,7 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
     private printPrefixMessage;
     private removeExtraFieldsAndLog;
     initSQLBuilder<T extends ColumnKeys, QueryReturnType = any>(): SQLBuilder<T, QueryReturnType>;
+    createWhereCondition(): WhereCondition<ColumnKeys>;
     createSelect(): (values?: {
         fields?: SelectFields<ColumnKeys>;
     }) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;

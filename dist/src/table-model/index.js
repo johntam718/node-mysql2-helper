@@ -81,6 +81,9 @@ class TableModel {
     initSQLBuilder() {
         return new sql_builder_class_1.SQLBuilder(this.queryFn);
     }
+    createWhereCondition() {
+        return {};
+    }
     createSelect() {
         return (values) => {
             const SQLBuild = this.initSQLBuilder();

@@ -114,15 +114,15 @@ export type InsertOptions = {
     onDuplicateKeyUpdate?: ObjectValues;
     enableTimestamps?: boolean;
     ctimeField?: string;
-    ctimeValue?: any;
+    ctimeValue?: () => any;
     utimeField?: string;
-    utimeValue?: any;
+    utimeValue?: () => any;
 };
 export type UpdateOptions = {
     enableTimestamps?: boolean;
     primaryKey?: string;
     utimeField?: string;
-    utimeValue?: any;
+    utimeValue?: () => any;
 };
 export type PatchOptions = Prettify<{} & Omit<UpdateOptions, 'primaryKey'>>;
 export type SoftDeleteOptions = Prettify<{
@@ -275,9 +275,9 @@ type IsNotNullOperator = {
 };
 type OperatorCondition = Prettify<EqualOperator & NotEqualOperator & LessThanOperator & LessThanOrEqualOperator & GreaterThanOperator & GreaterThanOrEqualOperator & LikeOperator & NotLikeOperator & RegexpOperator & InOperator & NotInOperator & BetweenOperator & NotBetweenOperator & IsNullOperator & IsNotNullOperator>;
 export type SimpleCondition<ColumnKeys extends string> = {
-    [key in ColumnKeys]?: OperatorCondition | string | number;
+    [key in ColumnKeys]?: OperatorCondition | string | number | Array<string> | Array<number>;
 } & {
-    [key: string]: OperatorCondition | string | number;
+    [key: string]: OperatorCondition | string | number | Array<string> | Array<number>;
 };
 type NonEmptyArray<T> = [T, ...T[]];
 export type NestedCondition<ColumnKeys extends string> = {

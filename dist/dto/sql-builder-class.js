@@ -333,8 +333,21 @@ class SQLBuilder {
                         }
                     }
                     else {
-                        clauses.push(`${sanitizedKey} = ?`);
-                        localParams.push(value);
+                        // Determine if the value is an array for IN condition
+                        // e.g. { user_id: [1, 2, 3] } => user_id IN (1, 2, 3)
+                        if (Array.isArray(value)) {
+                            if (value.length === 0) {
+                                throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
+                            }
+                            clauses.push(`${sanitizedKey} IN (${value.map(() => '?').join(', ')})`);
+                            localParams.push(...value);
+                        }
+                        else {
+                            // Normal equal condition
+                            // e.g. { user_id: 1 } => user_id = 1
+                            clauses.push(`${sanitizedKey} = ?`);
+                            localParams.push(value);
+                        }
                     }
                 }
             }
@@ -449,9 +462,9 @@ class SQLBuilder {
     }
     update(table, values, options) {
         this.checkTableName(table, 'update');
-        const { enableTimestamps = false, utimeField = 'utime', utimeValue = this.getCurrentUnixTimestamp(), primaryKey } = options || {};
+        const { enableTimestamps = false, utimeField = 'utime', utimeValue = this.getCurrentUnixTimestamp, primaryKey } = options || {};
         if (enableTimestamps) {
-            const currentTime = utimeValue;
+            const currentTime = typeof utimeValue === 'function' ? utimeValue() : utimeValue;
             if (values) {
                 values[utimeField] = currentTime;
             }
@@ -510,16 +523,28 @@ class SQLBuilder {
     }
     insert(table, values, options) {
         this.checkTableName(table, 'insert');
-        const { enableTimestamps = false, ctimeField = 'ctime', utimeField = 'utime', ctimeValue = this.getCurrentUnixTimestamp(), utimeValue = this.getCurrentUnixTimestamp(), } = options || {};
+        const { enableTimestamps = false, ctimeField = 'ctime', utimeField = 'utime', ctimeValue = this.getCurrentUnixTimestamp, utimeValue = this.getCurrentUnixTimestamp, } = options || {};
         const isMultipleInsert = Array.isArray(values);
         const rows = isMultipleInsert ? values : [values];
         if (isMultipleInsert && rows.length === 0) {
             throw new Error(this.printPrefixMessage('Insert :: Values cannot be empty'));
         }
         if (enableTimestamps) {
+            if (!(typeof ctimeValue === 'function')) {
+                throw new Error(this.printPrefixMessage('ctimeValue must be a function'));
+            }
+            if (!(typeof utimeValue === 'function')) {
+                throw new Error(this.printPrefixMessage('utimeValue must be a function'));
+            }
             rows.forEach((row) => {
-                row[ctimeField] = ctimeValue;
-                row[utimeField] = utimeValue;
+                // if not provided, set the current time
+                if (!row.hasOwnProperty(ctimeField)) {
+                    row[ctimeField] = ctimeValue();
+                }
+                // if not provided, set the current time
+                if (!row.hasOwnProperty(utimeField)) {
+                    row[utimeField] = utimeValue();
+                }
             });
         }
         const columns = Object.keys(rows[0]); // e.g. ['name', 'email', 'password']
