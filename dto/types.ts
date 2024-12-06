@@ -81,16 +81,16 @@ export type InsertOptions = {
   onDuplicateKeyUpdate?: ObjectValues;
   enableTimestamps?: boolean;
   ctimeField?: string;
-  ctimeValue?: any;
+  ctimeValue?: () => any
   utimeField?: string;
-  utimeValue?: any;
+  utimeValue?: () => any
 };
 
 export type UpdateOptions = {
   enableTimestamps?: boolean;
   primaryKey?: string;
   utimeField?: string;
-  utimeValue?: any;
+  utimeValue?: () => any
 };
 
 export type PatchOptions = Prettify<{
@@ -230,9 +230,9 @@ type OperatorCondition = Prettify<EqualOperator &
 
 // export type WhereCondition = { [key: string]: OperatorCondition | string | number }
 export type SimpleCondition<ColumnKeys extends string> = {
-  [key in ColumnKeys]?: OperatorCondition | string | number;
+  [key in ColumnKeys]?: OperatorCondition | string | number | Array<string> | Array<number>;
 } & {
-  [key: string]: OperatorCondition | string | number;
+  [key: string]: OperatorCondition | string | number | Array<string> | Array<number>;
 };
 
 type NonEmptyArray<T> = [T, ...T[]];

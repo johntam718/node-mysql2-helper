@@ -370,8 +370,20 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
               }
             }
           } else {
-            clauses.push(`${sanitizedKey} = ?`);
-            localParams.push(value);
+            // Determine if the value is an array for IN condition
+            // e.g. { user_id: [1, 2, 3] } => user_id IN (1, 2, 3)
+            if (Array.isArray(value)) {
+              if (value.length === 0) {
+                throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
+              }
+              clauses.push(`${sanitizedKey} IN (${value.map(() => '?').join(', ')})`);
+              localParams.push(...value);
+            } else {
+              // Normal equal condition
+              // e.g. { user_id: 1 } => user_id = 1
+              clauses.push(`${sanitizedKey} = ?`);
+              localParams.push(value);
+            }
           }
         }
       }
@@ -510,12 +522,12 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     const {
       enableTimestamps = false,
       utimeField = 'utime',
-      utimeValue = this.getCurrentUnixTimestamp(),
+      utimeValue = this.getCurrentUnixTimestamp,
       primaryKey
     } = options || {};
 
     if (enableTimestamps) {
-      const currentTime = utimeValue;
+      const currentTime = typeof utimeValue === 'function' ? utimeValue() : utimeValue;
       if (values) {
         (values as Record<string, any>)[utimeField] = currentTime;
       }
@@ -584,8 +596,8 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
       enableTimestamps = false,
       ctimeField = 'ctime',
       utimeField = 'utime',
-      ctimeValue = this.getCurrentUnixTimestamp(),
-      utimeValue = this.getCurrentUnixTimestamp(),
+      ctimeValue = this.getCurrentUnixTimestamp,
+      utimeValue = this.getCurrentUnixTimestamp,
     } = options || {};
 
     const isMultipleInsert = Array.isArray(values);
@@ -596,9 +608,21 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     }
 
     if (enableTimestamps) {
+      if (!(typeof ctimeValue === 'function')) {
+        throw new Error(this.printPrefixMessage('ctimeValue must be a function'));
+      }
+      if (!(typeof utimeValue === 'function')) {
+        throw new Error(this.printPrefixMessage('utimeValue must be a function'));
+      }
       rows.forEach((row) => {
-        (row as Record<string, any>)[ctimeField] = ctimeValue;
-        (row as Record<string, any>)[utimeField] = utimeValue;
+        // if not provided, set the current time
+        if (!row.hasOwnProperty(ctimeField)) {
+          (row as Record<string, any>)[ctimeField] = ctimeValue();
+        }
+        // if not provided, set the current time
+        if (!row.hasOwnProperty(utimeField)) {
+          (row as Record<string, any>)[utimeField] = utimeValue();
+        }
       });
     }
 

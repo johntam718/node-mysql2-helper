@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.6] - 2024-12-06
+### Added
+- **Enhanced `SQLBuilder` Class:**
+  - Added logic to determine if the value is an array for `IN` condition in the `buildWhereClause` method.
+    - Example: `{ user_id: [1, 2, 3] }` translates to `user_id IN (1, 2, 3)`.
+  - Improved handling of `ctime` and `utime` values to avoid caching the value when the server starts.
+    - Ensured that `ctimeValue` and `utimeValue` are functions and called them for each row to set the current time if not provided.
+
+
 ## [1.0.5] - 2024-11-28
 ### Added
 - **Raw SQL Support in Fields:**

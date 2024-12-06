@@ -26,9 +26,9 @@ import type {
 } from "mysql2";
 export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
   tableName: string;
-  private tableAlias?: string;
-  private primaryKey: PrimaryKey;
-  private columns: ColumnKeys[];
+  tableAlias?: string;
+  primaryKey: PrimaryKey;
+  columns: ColumnKeys[];
   private centralFields: CentralFields;
   private queryFn?: QueryFunction;
 
@@ -108,6 +108,10 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   initSQLBuilder<T extends ColumnKeys, QueryReturnType = any>() {
     return new SQLBuilder<T, QueryReturnType>(this.queryFn);
+  }
+
+  createWhereCondition() {
+    return {} as WhereCondition<ColumnKeys>;
   }
 
   createSelect() {
