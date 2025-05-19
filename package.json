@@ -1,6 +1,6 @@
 {
   "name": "node-mysql-query-utils",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A simple MySQL query utils for Node.js",
   "author": "John Tam <johntam718@gmail.com>",
   "license": "MIT",
