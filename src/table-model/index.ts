@@ -114,6 +114,15 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     return {} as WhereCondition<ColumnKeys>;
   }
 
+  createOrderbyObject(defaultValues: OrderByField<ColumnKeys>) {
+    if (!this.checkEmptyObject(defaultValues)) return defaultValues;
+    return {} as OrderByField<ColumnKeys>;
+  }
+
+  createOrderByArray() {
+    return [] as OrderByField<ColumnKeys>[];
+  }
+
   createSelect() {
     return (values?: {
       fields?: SelectFields<ColumnKeys>,

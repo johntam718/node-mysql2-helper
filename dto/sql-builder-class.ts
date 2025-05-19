@@ -1,6 +1,5 @@
 import {
   BuildQueryOptions,
-  ColumnData,
   DeleteQueryBuilder,
   FieldAlias,
   FromQueryBuilder,
@@ -11,7 +10,9 @@ import {
   InsertValue,
   JoinQueryBuilder,
   JoinType,
+  Limit,
   LimitQueryBuilder,
+  Offset,
   OffsetQueryBuilder,
   OrderByField,
   OrderByQueryBuilder,
@@ -42,7 +43,7 @@ function isFieldAlias<T extends string>(field: any): field is FieldAlias<T> {
 export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
   #queryParts: SQL_CONSTRUCTORS;
   queryFn?: QueryFunction;
-  message: string = 'Call .buildQuery() or .executeQuery() to get the result';
+  // message: string = 'Call .buildQuery() or .executeQuery() to get the result';
   constructor(queryFn?: QueryFunction) {
     this.#queryParts = {
       count: { sql: "", params: [] },
@@ -78,45 +79,6 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
   private getCurrentUnixTimestamp(): number {
     return Math.floor(Date.now() / 1000); // Unix timestamp
   }
-
-  // private processFields<T extends string>(fields: SelectFields<T>): { sql: string, params: string[] } {
-  //   const wildcardPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\.\*$/; // Checking for table.* pattern
-
-  //   if (typeof fields === 'string') {
-  //     if (fields === '*') {
-  //       // Select all fields
-  //       return { sql: 'SELECT *', params: [] };
-  //     } else if (wildcardPattern.test(fields)) {
-  //       // Select specific one field with wildcard e.g. table.*
-  //       return { sql: `SELECT ${fields}`, params: [] };
-  //     } else {
-  //       // Select specific one field
-  //       return { sql: 'SELECT ??', params: [fields] };
-  //     }
-  //   } else if (Array.isArray(fields) && fields.length > 0) {
-  //     // Select multiple fields
-  //     const fieldClauses = fields.map((field) => {
-  //       if (typeof field === 'string') {
-  //         return wildcardPattern.test(field) ? field : '??';
-  //       } else if (typeof field === 'object') {
-  //         return Object.entries(field).map(([col, alias]) => alias ? '?? AS ??' : '??').join(', ');
-  //       }
-  //     });
-
-  //     // Flatten the field definitions
-  //     const fieldParams = fields.flatMap((field) => {
-  //       if (typeof field === 'string') {
-  //         return wildcardPattern.test(field) ? [] : [field];
-  //       } else if (typeof field === 'object') {
-  //         return Object.entries(field).flatMap(([col, alias]) => alias ? [col, alias] : [col]);
-  //       }
-  //     });
-
-  //     return { sql: `SELECT ${fieldClauses.join(', ')}`, params: fieldParams as string[] || [] };
-  //   } else {
-  //     return { sql: 'SELECT *', params: [] };
-  //   }
-  // }
 
   private processFields<T extends string>(
     fields: SelectFields<T>
@@ -283,6 +245,21 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
           const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
           clauses.push(nestedClauseStrings.join(` ${key} `));
           nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
+        } else if (key === 'RAW') {
+          // Handle RAW SQL condition
+          const isValidRaw =
+            typeof value === 'object'
+            && value !== null
+            && 'sql' in value
+            && typeof value.sql === 'string'
+            && value.sql.length > 0;
+          if (!isValidRaw) {
+            throw new Error(this.printPrefixMessage('processConditions :: RAW :: raw (sql) must be a string'));
+          }
+          clauses.push(value.sql);
+          if (value.params && Array.isArray(value.params)) {
+            localParams.push(...value.params);
+          }
         } else {
           const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
 
@@ -496,20 +473,42 @@ export class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
 
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType> {
     if (!Array.isArray(fields) || fields.length === 0) return this;
-    this.#queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
-    this.#queryParts.orderBy.params = fields.map(({ field }) => field);
+    // this.#queryParts.orderBy.sql = `ORDER BY ${fields.map(({ field, direction }) => `?? ${direction || 'ASC'}`).join(', ')}`;
+    // this.#queryParts.orderBy.params = fields.map(({ field }) => field);
+    const orderItems: string[] = [];
+    const params: any[] = [];
+
+    fields.forEach((field) => {
+      if (field.raw) {
+        // Raw SQL expression - use raw value
+        orderItems.push(`${field.raw} ${field.direction || 'ASC'}`);
+      } else {
+        // Regular column name - use placeholder
+        orderItems.push(`?? ${field.direction || 'ASC'}`);
+        params.push(field.field);
+      }
+    });
+
+    this.#queryParts.orderBy.sql = `ORDER BY ${orderItems.join(', ')}`;
+    this.#queryParts.orderBy.params = params;
+
     return this;
   }
 
-  limit(limit: number): LimitQueryBuilder<QueryReturnType> {
-    if (isNaN(limit) || limit < 0) return this;
+  limit(limit?: Limit): LimitQueryBuilder<QueryReturnType> {
+    if (limit === undefined || limit === null || Number.isNaN(limit) || limit < 0) return this;
     this.#queryParts.limit.sql = `LIMIT ?`;
     this.#queryParts.limit.params = [limit];
     return this;
   }
 
-  offset(offset: number): OffsetQueryBuilder<QueryReturnType> {
-    if (isNaN(offset) || offset < 0) return this;
+  offset(offset?: Offset): OffsetQueryBuilder<QueryReturnType> {
+    if (offset === undefined
+      || offset === null
+      || Number.isNaN(offset)
+      || offset < 0
+      || this.#queryParts.limit.params.length === 0
+    ) return this;
     this.#queryParts.offset.sql = `OFFSET ?`;
     this.#queryParts.offset.params = [offset];
     return this;

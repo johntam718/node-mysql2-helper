@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.7] - 2025-05-19
+### Added
+- **Enhanced Type System:**
+  - Updated `LimitOffset` type to support more flexible limit and offset combinations
+  - Added `RawWhereCondition` type to support raw SQL conditions in where clauses
+  - Added `OrderByField` type to support both regular field ordering and raw SQL expressions
+
+- **SQL Builder Improvements:**
+  - Added support for raw SQL conditions in where clauses using the `RAW` operator
+  - Enhanced order by functionality to support raw SQL expressions
+
+- **Table Model Helper Functions:**
+  - Added `createOrderByObject` helper function to create order by objects with default values
+  - Added `createOrderByArray` helper function to create empty order by arrays
+
 ## [1.0.6] - 2024-12-06
 ### Added
 - **Enhanced `SQLBuilder` Class:**
