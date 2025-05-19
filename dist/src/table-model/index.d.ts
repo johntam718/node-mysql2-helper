@@ -17,6 +17,8 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
     private removeExtraFieldsAndLog;
     initSQLBuilder<T extends ColumnKeys, QueryReturnType = any>(): SQLBuilder<T, QueryReturnType>;
     createWhereCondition(): WhereCondition<ColumnKeys>;
+    createOrderbyObject(defaultValues: OrderByField<ColumnKeys>): OrderByField<ColumnKeys>;
+    createOrderByArray(): OrderByField<ColumnKeys>[];
     createSelect(): (values?: {
         fields?: SelectFields<ColumnKeys>;
     }) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;

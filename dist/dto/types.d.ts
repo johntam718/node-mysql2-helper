@@ -95,7 +95,12 @@ export type SelectFields<T extends string> = '*' | string & {} | T | (T | FieldA
     [key in T]?: string;
 } & RawField;
 export type OrderByField<T> = {
+    raw?: never;
     field: T | (string & {});
+    direction?: 'ASC' | 'DESC';
+} | {
+    raw: string;
+    field?: never;
     direction?: 'ASC' | 'DESC';
 };
 export type GroupByField<T> = T | (string & {}) | T[];
@@ -132,9 +137,11 @@ export type LimitOffset = {
     limit?: never;
     offset?: never;
 } | {
-    limit: number;
-    offset?: number;
+    limit: Limit;
+    offset?: Offset;
 };
+export type Limit = null | number;
+export type Offset = null | number;
 export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 export type BuildQueryOptions = {
     format?: boolean;
@@ -156,7 +163,7 @@ export type SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
 };
 export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
-    limit(limit: number): LimitQueryBuilder<QueryReturnType>;
+    limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
     groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
@@ -167,21 +174,21 @@ export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
     where(where: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
     groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
     orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
-    limit(limit: number): LimitQueryBuilder<QueryReturnType>;
+    limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 };
 export interface JoinQueryBuilder<ColumnKeys extends string, QueryReturnType> extends FromQueryBuilder<ColumnKeys, QueryReturnType> {
 }
 export interface OrderByQueryBuilder<T> {
-    limit(limit: number): LimitQueryBuilder<T>;
+    limit(limit?: Limit): LimitQueryBuilder<T>;
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<K = T>(): Promise<K>;
 }
 export interface GroupByQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> {
 }
 export interface LimitQueryBuilder<QueryReturnType> {
-    offset(offset: number): OffsetQueryBuilder<QueryReturnType>;
+    offset(offset?: Offset): OffsetQueryBuilder<QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
@@ -211,7 +218,7 @@ export interface InsertQueryBuilder<QueryReturnType> {
 }
 export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> {
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-    limit(limit: number): LimitQueryBuilder<QueryReturnType>;
+    limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): BuildQueryResult;
     executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
@@ -271,14 +278,20 @@ type IsNullOperator = {
     'IS_NULL'?: true;
 };
 type IsNotNullOperator = {
-    ['IS_NOT_NULL']?: true;
+    'IS_NOT_NULL'?: true;
 };
 type OperatorCondition = Prettify<EqualOperator & NotEqualOperator & LessThanOperator & LessThanOrEqualOperator & GreaterThanOperator & GreaterThanOrEqualOperator & LikeOperator & NotLikeOperator & RegexpOperator & InOperator & NotInOperator & BetweenOperator & NotBetweenOperator & IsNullOperator & IsNotNullOperator>;
+type RawWhereCondition = {
+    'RAW'?: {
+        sql: string;
+        params?: any[];
+    };
+};
 export type SimpleCondition<ColumnKeys extends string> = {
     [key in ColumnKeys]?: OperatorCondition | string | number | Array<string> | Array<number>;
-} & {
+} & ({
     [key: string]: OperatorCondition | string | number | Array<string> | Array<number>;
-};
+} | RawWhereCondition);
 type NonEmptyArray<T> = [T, ...T[]];
 export type NestedCondition<ColumnKeys extends string> = {
     AND?: NonEmptyArray<WhereCondition<ColumnKeys>>;

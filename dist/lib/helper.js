@@ -1,23 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createWhereCondition = createWhereCondition;
-exports.createOrderBy = createOrderBy;
 exports.createColumns = createColumns;
-exports.createFieldAlias = createFieldAlias;
 // Helper function to create a WhereCondition
-function createWhereCondition(conditions) {
-    return conditions;
-}
-// Helper function to create an orderBy array
-function createOrderBy(fields) {
-    return fields;
-}
+// export function createWhereCondition<T extends string>(conditions: WhereCondition<T>): WhereCondition<T> {
+//   return conditions;
+// }
+// // Helper function to create an orderBy array
+// export function createOrderBy<T extends string>(fields: OrderByField<T>[]): OrderByField<T>[] {
+//   return fields;
+// }
 // Helper function to create columns
 function createColumns(columns) {
     return columns;
 }
 // Helper function to create field alias
-function createFieldAlias(fieldObj) {
-    return fieldObj;
-}
+// export function createFieldAlias<T extends string>(fieldObj: FieldAlias<T>): FieldAlias<T> {
+//   return fieldObj;
+// }
 //# sourceMappingURL=helper.js.map

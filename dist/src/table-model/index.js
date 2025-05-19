@@ -84,6 +84,14 @@ class TableModel {
     createWhereCondition() {
         return {};
     }
+    createOrderbyObject(defaultValues) {
+        if (!this.checkEmptyObject(defaultValues))
+            return defaultValues;
+        return {};
+    }
+    createOrderByArray() {
+        return [];
+    }
     createSelect() {
         return (values) => {
             const SQLBuild = this.initSQLBuilder();

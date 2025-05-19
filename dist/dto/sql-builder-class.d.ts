@@ -1,8 +1,7 @@
-import { BuildQueryOptions, DeleteQueryBuilder, FromQueryBuilder, GroupByField, GroupByQueryBuilder, InsertOptions, InsertQueryBuilder, InsertValue, JoinQueryBuilder, JoinType, LimitQueryBuilder, OffsetQueryBuilder, OrderByField, OrderByQueryBuilder, QueryFunction, SelectFields, SelectQueryBuilder, SetQueryBuilder, UpdateOptions, UpdateQueryBuilder, UpdateQueryBuilderWithoutSet, UpdateValue, WhereCondition, WhereQueryBuilder } from './types';
+import { BuildQueryOptions, DeleteQueryBuilder, FromQueryBuilder, GroupByField, GroupByQueryBuilder, InsertOptions, InsertQueryBuilder, InsertValue, JoinQueryBuilder, JoinType, Limit, LimitQueryBuilder, Offset, OffsetQueryBuilder, OrderByField, OrderByQueryBuilder, QueryFunction, SelectFields, SelectQueryBuilder, SetQueryBuilder, UpdateOptions, UpdateQueryBuilder, UpdateQueryBuilderWithoutSet, UpdateValue, WhereCondition, WhereQueryBuilder } from './types';
 export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any> {
     #private;
     queryFn?: QueryFunction;
-    message: string;
     constructor(queryFn?: QueryFunction);
     private extractTableAndAlias;
     private getCurrentUnixTimestamp;
@@ -25,8 +24,8 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
     groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
     orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
-    limit(limit: number): LimitQueryBuilder<QueryReturnType>;
-    offset(offset: number): OffsetQueryBuilder<QueryReturnType>;
+    limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
+    offset(offset?: Offset): OffsetQueryBuilder<QueryReturnType>;
     update(table: string): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
     update(table: string, values: UpdateValue<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
     update(table: string, values: UpdateValue<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
