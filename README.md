@@ -74,7 +74,7 @@ This package provides three classes to help you manage and interact with your My
 
 ## Quick Start
 
-Here’s a quick overview of how to make use of this library:
+Here's a quick overview of how to make use of this library:
 
 ```typescript
 import {
@@ -395,6 +395,11 @@ const [sql, params] = sqlBuilder
     nickname: { LIKE: '%_123' } // custom pattern
     nickname: { REGEXP: '^[a-zA-Z0-9]*$' } // custom pattern
     "u.user_id": { "!=": 1 }, // assume alias is set in From's second parameters (e.g. .from("user_account", "u"))
+    // Raw SQL condition
+    RAW: {
+      sql: 'LENGTH(nickname) > ?',
+      params: [5]
+    }
   })
   .buildQuery();
 ```
@@ -405,17 +410,16 @@ const [sql, params] = sqlBuilder
   .select()
   .from("user_account")
   .where({
-    email: "123@gmail.com",
-    is_active: 1,
-  })
-  .buildQuery();
-
-// alternative AND example
-const [sql, params] = sqlBuilder
-  .select()
-  .from("user_account")
-  .where({
-    AND: [{ email: { LIKE: "%@gmail.com" } }, { username: "jane" }],
+    AND: [
+      { email: { LIKE: "%@gmail.com" } },
+      { username: "jane" },
+      {
+        RAW: {
+          sql: 'TIMESTAMPDIFF(DAY, created_at, NOW()) > ?',
+          params: [30]
+        }
+      }
+    ],
   });
 ```
 
@@ -425,7 +429,16 @@ const [sql, params] = sqlBuilder
   .select()
   .from("user_account")
   .where({
-    OR: [{ email: { LIKE: "%@gmail.com" } }, { username: "jane" }],
+    OR: [
+      { email: { LIKE: "%@gmail.com" } },
+      { username: "jane" },
+      {
+        RAW: {
+          sql: 'status = ? AND is_active = ?',
+          params: [1, 1]
+        }
+      }
+    ],
   });
 ```
 
@@ -464,6 +477,18 @@ const [sql, params] = sqlBuilder
   .orderBy([
     { field: "email", direction: "ASC" },
     { field: "user_id", direction: "DESC" },
+  ])
+  .buildQuery();
+
+// Raw SQL in order by
+const [sql, params] = sqlBuilder
+  .select()
+  .from("user_account")
+  .orderBy([
+    { 
+      raw: 'TIMESTAMPDIFF(DAY, created_at, NOW())',
+      direction: "DESC" 
+    }
   ])
   .buildQuery();
 ```
