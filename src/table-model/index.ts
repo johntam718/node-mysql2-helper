@@ -182,7 +182,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   }
 
   findOne(values: {
-    fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
+    fields?: SelectFields<ColumnKeys>,
     where: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[],
   }) {
@@ -197,7 +197,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   }
 
   findAll(values?: Prettify<{
-    fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[],
+    fields?: SelectFields<ColumnKeys>,
     where?: WhereCondition<ColumnKeys>,
     orderBy?: OrderByField<ColumnKeys>[],
   } & LimitOffset>) {
@@ -233,8 +233,8 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     options?: UpdateOptions
   }>) {
     const { data = {}, where = {}, options } = values || {};
-    this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
-    if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
+    this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateAll :: Data cannot be empty'));
+    if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateAll :: Where condition cannot be empty'));
     if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
