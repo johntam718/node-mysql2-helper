@@ -29,6 +29,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   tableAlias?: string;
   primaryKey: PrimaryKey;
   columns: ColumnKeys[];
+  private enablePrimaryKey: boolean;
   private centralFields: CentralFields;
   private queryFn?: QueryFunction;
 
@@ -37,6 +38,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     this.tableAlias = config.tableAlias;
     this.primaryKey = config.primaryKey;
     this.columns = config.columns;
+    this.enablePrimaryKey = config.enablePrimaryKey !== false; // default true
     const defaultCentralFields: CentralFields = {
       ctimeField: 'ctime',
       utimeField: 'utime',
@@ -56,8 +58,8 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     if (!this.tableName) {
       throw new Error('Table name is required');
     }
-    if (!this.primaryKey) {
-      throw new Error('Primary key is required');
+    if (this.enablePrimaryKey && !this.primaryKey) {
+      throw new Error('Primary key is required when enablePrimaryKey is true');
     }
     if (!Array.isArray(this.columns) || this.columns.length === 0) {
       throw new Error('Table Columns are required');
@@ -82,6 +84,13 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   private printPrefixMessage(message: string) {
     return `[Table :: ${this.tableName}] :: ${message}`;
+  }
+
+  private cloneData<T>(data: T): T {
+    if (Array.isArray(data)) {
+      return data.map(item => ({ ...item })) as T;
+    }
+    return { ...data } as T;
   }
 
   private removeExtraFieldsAndLog(structuredData: InsertValue<ColumnKeys> & { [key: string]: any }, index?: number) {
@@ -114,9 +123,14 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     return {} as WhereCondition<ColumnKeys>;
   }
 
-  createOrderbyObject(defaultValues: OrderByField<ColumnKeys>) {
-    if (!this.checkEmptyObject(defaultValues)) return defaultValues;
+  createOrderByObject(defaultValues?: OrderByField<ColumnKeys>) {
+    if (defaultValues && !this.checkEmptyObject(defaultValues)) return defaultValues;
     return {} as OrderByField<ColumnKeys>;
+  }
+
+  // Backward compatibility alias
+  createOrderbyObject(defaultValues?: OrderByField<ColumnKeys>) {
+    return this.createOrderByObject(defaultValues);
   }
 
   createOrderByArray() {
@@ -135,15 +149,18 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
 
   createUpdate(options?: UpdateOptions) {
     return (values: {
-      data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
+      data: UpdateValue<ColumnKeys>,
       where: WhereCondition<ColumnKeys>,
     }) => {
       const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
       const { data = {}, where = {} } = values || {};
       this.throwEmptyObjectError(where, this.printPrefixMessage('CreateUpdate :: Where condition cannot be empty'));
       this.throwEmptyObjectError(data, this.printPrefixMessage('CreateUpdate :: Data cannot be empty'));
-      if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data];
-      return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
+      const handleData = this.cloneData(data);
+      if (this.enablePrimaryKey && this.primaryKey && this.primaryKey in handleData) {
+        delete handleData[this.primaryKey as unknown as keyof typeof handleData];
+      }
+      return SQLBuild.update(this.tableName, handleData as UpdateValue<ColumnKeys>, options)
         .where(where);
     }
   }
@@ -151,12 +168,13 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   createInsert(options?: InsertOptions) {
     return (data: InsertValue<ColumnKeys>) => {
       const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-      if (Array.isArray(data)) {
-        this.throwEmptyArrayError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
+      const handleData = this.cloneData(data);
+      if (Array.isArray(handleData)) {
+        this.throwEmptyArrayError(handleData, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
       } else {
-        this.throwEmptyObjectError(data, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
+        this.throwEmptyObjectError(handleData, this.printPrefixMessage('CreateInsert :: Data cannot be empty'));
       }
-      const structuredData = Array.isArray(data) ? data : [data];
+      const structuredData = Array.isArray(handleData) ? handleData : [handleData];
       this.removeExtraFieldsAndLog(structuredData);
       return SQLBuild.insert(this.tableName, structuredData, options);
     }
@@ -203,7 +221,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   } & LimitOffset>) {
     const { where, orderBy = [], fields, limit, offset } = values || {};
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('FindAll :: Where condition cannot be empty'));
-    const SQLBuild = this.initSQLBuilder<ColumnKeys, RowDataPacket[]>();
+    const SQLBuild = this.initSQLBuilder<ColumnKeys, { [key in ColumnKeys | (string & {})]?: any }[]>();
     return SQLBuild.select(fields || "*")
       .from(this.tableName, this.tableAlias)
       .where(where as WhereCondition<ColumnKeys>)
@@ -213,41 +231,48 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
   }
 
   updateOne(values: Prettify<{
-    data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
+    data: UpdateValue<ColumnKeys>,
     where: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
     const { data = {}, where = {}, options } = values || {};
     this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateOne :: Where condition cannot be empty'));
     this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateOne :: Data cannot be empty'));
-    if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
+    const handleData = this.cloneData(data);
+    if (this.enablePrimaryKey && this.primaryKey && this.primaryKey in handleData) {
+      delete handleData[this.primaryKey as unknown as keyof typeof handleData]; // For javascript type checking
+    }
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
+    return SQLBuild.update(this.tableName, handleData as UpdateValue<ColumnKeys>, options)
       .where(where)
       .limit(1) as QueryAction<ResultSetHeader>;
   }
 
   updateAll(values: Prettify<{
-    data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>,
+    data: UpdateValue<ColumnKeys>,
     where?: WhereCondition<ColumnKeys>,
     options?: UpdateOptions
   }>) {
     const { data = {}, where = {}, options } = values || {};
     this.throwEmptyObjectError(data, this.printPrefixMessage('UpdateAll :: Data cannot be empty'));
     if (where) this.throwEmptyObjectError(where, this.printPrefixMessage('UpdateAll :: Where condition cannot be empty'));
-    if (this.primaryKey in data) delete data[this.primaryKey as unknown as keyof typeof data]; // For javascript type checking
+    const handleData = this.cloneData(data);
+    if (this.enablePrimaryKey && this.primaryKey && this.primaryKey in handleData) {
+      delete handleData[this.primaryKey as unknown as keyof typeof handleData]; // For javascript type checking
+    }
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
-    return SQLBuild.update(this.tableName, data as UpdateValue<ColumnKeys>, options)
+    return SQLBuild.update(this.tableName, handleData as UpdateValue<ColumnKeys>, options)
       .where(where) as QueryAction<ResultSetHeader>;
   }
 
   insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions) {
-    if (Array.isArray(data)) {
-      this.throwEmptyArrayError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+    const handleData = this.cloneData(data);
+    if (Array.isArray(handleData)) {
+      this.throwEmptyArrayError(handleData, this.printPrefixMessage('Create :: Data cannot be empty'));
     } else {
-      this.throwEmptyObjectError(data, this.printPrefixMessage('Create :: Data cannot be empty'));
+      this.throwEmptyObjectError(handleData, this.printPrefixMessage('Create :: Data cannot be empty'));
     }
-    const structuredData = Array.isArray(data) ? data : [data];
+    const structuredData = Array.isArray(handleData) ? handleData : [handleData];
     this.removeExtraFieldsAndLog(structuredData);
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     return SQLBuild.insert(this.tableName, structuredData, options);
@@ -287,7 +312,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     if (typeof patchField !== 'string' || patchField.length === 0) {
       throw new Error(this.printPrefixMessage('PatchSingleField :: Patch field is required'));
     }
-    this.throwEmptyObjectError(where, this.printPrefixMessage('PatchIsActive :: Where condition cannot be empty'));
+    this.throwEmptyObjectError(where, this.printPrefixMessage('PatchSingleField :: Where condition cannot be empty'));
     const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
     const data = { [patchField]: value } as ColumnData<ColumnKeys>;
     return SQLBuild.update(this.tableName, data, options)

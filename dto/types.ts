@@ -8,14 +8,11 @@ export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & unknown;
 
-type ObjectValues = { [key: string]: any };
-
 export type DatabaseConnectionConfig = {
   identifierName: string;
   config: ConnectionOptions;
   options?: DatabaseManagementOptions;
 }
-
 
 export type SQL_CONSTRUCTORS = {
   count: { sql: string, params: any[] },
@@ -38,6 +35,7 @@ export type TableModelConstructor<ColumnKeys, PrimaryKey> = {
   tableAlias?: string,
   primaryKey: PrimaryKey,
   columns: ColumnKeys,
+  enablePrimaryKey?: boolean, // If false, allows tables without primary keys (e.g., junction tables)
   centralFields?: CentralFields
   queryFn?: QueryFunction
 }
@@ -57,7 +55,6 @@ export type RawField = {
 };
 
 export type FieldAlias<T extends string> = { [key in T]?: string }
-// export type FieldAlias<T extends string> = { [key in T]?: string } & { [key: string]: string };
 export type SelectFields<T extends string> =
   | '*'
   | string & {}
@@ -65,14 +62,15 @@ export type SelectFields<T extends string> =
   | (T | FieldAlias<T> | RawField | string & {})[]
   | { [key in T]?: string } & RawField;
 
+export type Direction = 'ASC' | 'DESC';
 export type OrderByField<T> = {
   raw?: never,
   field: T | (string & {}),
-  direction?: 'ASC' | 'DESC'
+  direction?: Direction
 } | {
   raw: string,
   field?: never,
-  direction?: 'ASC' | 'DESC'
+  direction?: Direction
 };
 
 export type GroupByField<T> = T | (string & {}) | T[];
@@ -85,9 +83,9 @@ export type IncrementDecrementValue =
 export type UpdateValue<T extends string> = Partial<Record<T, IncrementDecrementValue | string | number | null>>;
 
 export type InsertValue<T extends string> = ColumnData<T> | ColumnData<T>[];
-export type InsertOptions = {
+export type InsertOptions<ColumnKeys extends string = string> = {
   insertIgnore?: boolean;
-  onDuplicateKeyUpdate?: ObjectValues;
+  onDuplicateKeyUpdate?: UpdateValue<ColumnKeys>;
   enableTimestamps?: boolean;
   ctimeField?: string;
   ctimeValue?: () => any
@@ -130,74 +128,51 @@ export type QueryAction<QueryReturnType> = {
   executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export type SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
+export interface SelectQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   from(table: string, alias?: string): FromQueryBuilder<ColumnKeys, QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+export interface WhereQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
   limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
   groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
-export type FromQueryBuilder<ColumnKeys extends string, QueryReturnType> = {
+export interface FromQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   join(joinType: JoinType, table: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
   join(joinType: JoinType, table: string, alias: string, onCondition: string): JoinQueryBuilder<ColumnKeys, QueryReturnType>;
   where(where: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   groupBy(fields: GroupByField<ColumnKeys>): GroupByQueryBuilder<QueryReturnType>;
   orderBy(fields: OrderByField<ColumnKeys>[]): OrderByQueryBuilder<QueryReturnType>;
   limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
 export interface JoinQueryBuilder<ColumnKeys extends string, QueryReturnType> extends FromQueryBuilder<ColumnKeys, QueryReturnType> { }
 // export interface GroupByQueryBuilder extends FromQueryBuilder { }
 
-export interface OrderByQueryBuilder<T> {
-  limit(limit?: Limit): LimitQueryBuilder<T>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<K = T>(): Promise<K>;
+export interface OrderByQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> {
+  limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
 }
 export interface GroupByQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> { }
-export interface LimitQueryBuilder<QueryReturnType> {
+export interface LimitQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> {
   offset(offset?: Offset): OffsetQueryBuilder<QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface OffsetQueryBuilder<QueryReturnType> {
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
-}
-export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+export interface OffsetQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> { }
+export interface UpdateQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   set?(values: UpdateValue<ColumnKeys>): UpdateQueryBuilder<ColumnKeys, QueryReturnType>;
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface UpdateQueryBuilderWithoutSet<ColumnKeys extends string, QueryReturnType> {
+export interface UpdateQueryBuilderWithoutSet<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface SetQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+export interface SetQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
-export interface InsertQueryBuilder<QueryReturnType> {
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
+export interface InsertQueryBuilder<QueryReturnType> extends QueryAction<QueryReturnType> {
 }
-export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> {
+export interface DeleteQueryBuilder<ColumnKeys extends string, QueryReturnType> extends QueryAction<QueryReturnType> {
   where(conditions: WhereCondition<ColumnKeys>): WhereQueryBuilder<ColumnKeys, QueryReturnType>;
   limit(limit?: Limit): LimitQueryBuilder<QueryReturnType>;
-  buildQuery(options?: BuildQueryOptions): BuildQueryResult;
-  executeQuery<ReturnType = QueryReturnType>(): Promise<ReturnType>;
 }
 
 // --------------------------------------------------QUERY BUILDER END--------------------------------------------------
@@ -240,28 +215,33 @@ type OperatorCondition = Prettify<EqualOperator &
   IsNotNullOperator
 >;
 
+type NonEmptyArray<T> = [T, ...T[]];
+
 type RawWhereCondition = {
   'RAW'?: {
-      sql: string;
-      params?: any[];
+    sql: string;
+    params?: any[];
   }
 }
 
 // export type WhereCondition = { [key: string]: OperatorCondition | string | number }
 export type SimpleCondition<ColumnKeys extends string> = {
   [key in ColumnKeys]?: OperatorCondition | string | number | Array<string> | Array<number>;
-} & ({
+} & {
   [key: string]: OperatorCondition | string | number | Array<string> | Array<number>;
-} | RawWhereCondition);
-
-type NonEmptyArray<T> = [T, ...T[]];
+};
 
 export type NestedCondition<ColumnKeys extends string> = {
   AND?: NonEmptyArray<WhereCondition<ColumnKeys>>;
   OR?: NonEmptyArray<WhereCondition<ColumnKeys>>;
 };
 
-export type WhereCondition<ColumnKeys extends string> = Prettify<SimpleCondition<ColumnKeys> | NestedCondition<ColumnKeys>>;
+export type WhereCondition<ColumnKeys extends string> = Prettify<
+  (SimpleCondition<ColumnKeys> & NestedCondition<ColumnKeys>) |
+  NestedCondition<ColumnKeys> |
+  (RawWhereCondition & NestedCondition<ColumnKeys>) |
+  (SimpleCondition<ColumnKeys> & RawWhereCondition & NestedCondition<ColumnKeys>)
+>;
 
 export type DatabaseManagementOptions = {
   verbose?: boolean;
