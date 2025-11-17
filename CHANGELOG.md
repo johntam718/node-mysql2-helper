@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.0.8] - 2025-11-17
+
+### Added
+- **TableModel**: Added `enablePrimaryKey` option to allow tables without primary keys (useful for junction tables)
+  - Defaults to `true` for backward compatibility
+  - When `false`, primary key validation is skipped
+  - Example: `new TableModel({ enablePrimaryKey: false, ... })`
+
+- **TableModel**: Added shallow data cloning to prevent mutation of input data
+  - All update and insert methods now clone data before processing
+  - Uses native JavaScript spread operator (no dependencies)
+  - Prevents accidental side effects from data mutation
+
+- **SQLBuilder**: Added support for `IncrementDecrementValue` in `onDuplicateKeyUpdate`
+  - Can now use `{ points: { increment: 10 } }` syntax in `onDuplicateKeyUpdate`
+  - Supports increment, decrement, and regular values
+  - Example: `insertRecord(data, { onDuplicateKeyUpdate: { views: { increment: 1 }, email: 'new@example.com' } })`
+
+- **Types**: Improved type hints for `WhereCondition`
+  - `.AND` and `.OR` properties now show proper type hints even when using `RAW` conditions
+  - Better autocomplete support for nested conditions
+
+- **Types**: Made `InsertOptions` generic with `ColumnKeys` parameter
+  - `onDuplicateKeyUpdate` now has proper type hints based on column keys
+  - Better autocomplete and type safety for `onDuplicateKeyUpdate` values
+
+### Changed
+- **TableModel**: Updated type signatures for update methods
+  - `createUpdate()`, `updateOne()`, and `updateAll()` now accept `UpdateValue<ColumnKeys>` instead of `Omit<UpdateValue<ColumnKeys>, PrimaryKey>`
+  - Primary key can be included in data and will be automatically removed
+  - Better type safety and accuracy
+
+- **SQLBuilder**: Refactored increment/decrement logic into reusable methods
+  - Extracted `validateIncrementDecrement()` helper method
+  - Extracted `buildUpdateClausesAndParams()` helper method
+  - Eliminated code duplication between `set()` and `onDuplicateKeyUpdate`
+  - Improved maintainability and consistency
+
+### Removed
+- **TableModel**: Removed `createOrderbyObject()` method (breaking change)
+  - Use `createOrderByObject()` instead (correct spelling)
+  - The typo method name has been completely removed for consistency
+
+### Fixed
+- **Types**: Fixed type hints for `WhereCondition.AND` and `WhereCondition.OR`
+  - Type hints now work correctly even when `RawWhereCondition` is present
+  - Improved developer experience with better autocomplete
+
 ## [1.0.7] - 2025-05-19
 ### Added
 - **Enhanced Type System:**
