@@ -142,6 +142,47 @@ class SQLBuilder {
     printPrefixMessage(message) {
         return `[SQLBuilder] :: ${message}`;
     }
+    /**
+     * Validates that increment and decrement are not both provided for the same field
+     */
+    validateIncrementDecrement(values, context = 'Values') {
+        Object.entries(values).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+                if ('increment' in value && 'decrement' in value) {
+                    throw new Error(`${context} :: Both increment and decrement provided for field ${key}`);
+                }
+            }
+        });
+    }
+    /**
+     * Builds SQL clauses and parameters for update operations, handling increment/decrement values
+     * @returns Object with clauses array and params array
+     */
+    buildUpdateClausesAndParams(values) {
+        const clauses = [];
+        const params = [];
+        Object.entries(values).forEach(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+                if ('increment' in value) {
+                    clauses.push(`?? = ?? + ?`);
+                    params.push(key, key, value.increment);
+                }
+                else if ('decrement' in value) {
+                    clauses.push(`?? = ?? - ?`);
+                    params.push(key, key, value.decrement);
+                }
+                else {
+                    clauses.push(`?? = ?`);
+                    params.push(key, value);
+                }
+            }
+            else {
+                clauses.push(`?? = ?`);
+                params.push(key, value);
+            }
+        });
+        return { clauses, params };
+    }
     // private uniqueFields<T extends string>(fields: (T | FieldAlias<T>)[]) {
     //   const seen = new Map<string, T | FieldAlias<T>>();
     //   fields.forEach(field => {
@@ -192,143 +233,141 @@ class SQLBuilder {
             const localParams = [];
             for (const key in conditions) {
                 const value = conditions[key];
-                if (key === 'AND' || key === 'OR') {
-                    if (!Array.isArray(value) || value.length === 0) {
-                        throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
-                    }
-                    const nestedConditions = value;
-                    const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
-                    const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
-                    clauses.push(nestedClauseStrings.join(` ${key} `));
-                    nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
-                }
-                else if (key === 'RAW') {
-                    // Handle RAW SQL condition
-                    const isValidRaw = typeof value === 'object'
-                        && value !== null
-                        && 'sql' in value
-                        && typeof value.sql === 'string'
-                        && value.sql.length > 0;
-                    if (!isValidRaw) {
-                        throw new Error(this.printPrefixMessage('processConditions :: RAW :: raw (sql) must be a string'));
-                    }
-                    clauses.push(value.sql);
-                    if (value.params && Array.isArray(value.params)) {
-                        localParams.push(...value.params);
-                    }
-                }
-                else {
-                    const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
-                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                        for (const operator in value) {
-                            // Handle IN
-                            if (operator === 'IN' && Array.isArray(value[operator])) {
-                                if (value[operator].length === 0) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
-                                }
-                                clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
-                                localParams.push(...value[operator]);
-                                // Handle NOT_IN
-                            }
-                            else if (operator === 'NOT_IN' && Array.isArray(value[operator])) {
-                                if (value[operator].length === 0) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: NOT_IN :: condition must be a non-empty array`));
-                                }
-                                clauses.push(`${sanitizedKey} NOT IN (${value[operator].map(() => '?').join(', ')})`);
-                                localParams.push(...value[operator]);
-                                // Handle BETWEEN
-                            }
-                            else if (operator === 'BETWEEN' && Array.isArray(value[operator])) {
-                                if (value[operator].length !== 2) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: BETWEEN :: condition must be an array with exactly 2 elements`));
-                                }
-                                clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
-                                localParams.push(value[operator][0], value[operator][1]);
-                                // Handle NOT_BETWEEN
-                            }
-                            else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator])) {
-                                if (value[operator].length !== 2) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: NOT_BETWEEN :: condition must be an array with exactly 2 elements`));
-                                }
-                                clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
-                                localParams.push(value[operator][0], value[operator][1]);
-                                // Handle =, !=, <, <=, >, >=
-                            }
-                            else if (['=', '!=', '<', '<=', '>', '>='].includes(operator)) {
-                                clauses.push(`${sanitizedKey} ${operator} ?`);
-                                localParams.push(value[operator]);
-                                // Handle LIKE, NOT LIKE
-                            }
-                            else if (operator === 'LIKE' || operator === 'NOT_LIKE') {
-                                const patternType = value[operator];
-                                const clauseString = `${sanitizedKey} ${operator === 'NOT_LIKE' ? 'NOT LIKE' : 'LIKE'} ?`;
-                                if (typeof patternType === 'string') {
-                                    // Direct string pattern
-                                    clauses.push(clauseString);
-                                    localParams.push(patternType);
-                                }
-                                else if (typeof patternType === 'object' && patternType !== null) {
-                                    // Validation step to ensure only one of contains, startsWith, or endsWith is present
-                                    const patternKeys = ['contains', 'startsWith', 'endsWith'];
-                                    const presentKeys = patternKeys.filter(key => key in patternType);
-                                    if (presentKeys.length > 1) {
-                                        throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Only one of 'contains', 'startsWith', or 'endsWith' can be provided`));
-                                    }
-                                    switch (true) {
-                                        case !!patternType.contains:
-                                            clauses.push(clauseString);
-                                            localParams.push(`%${patternType.contains}%`);
-                                            break;
-                                        case !!patternType.startsWith:
-                                            clauses.push(clauseString);
-                                            localParams.push(`${patternType.startsWith}%`);
-                                            break;
-                                        case !!patternType.endsWith:
-                                            clauses.push(clauseString);
-                                            localParams.push(`%${patternType.endsWith}`);
-                                            break;
-                                        default:
-                                            throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Invalid pattern type`));
-                                    }
-                                }
-                                // Handle REGEXP
-                            }
-                            else if (operator === "REGEXP") {
-                                if (typeof value[operator] !== 'string' || value[operator].length === 0) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be a non empty string`));
-                                }
-                                clauses.push(`${sanitizedKey} REGEXP ?`);
-                                localParams.push(value[operator]);
-                                // Handle IS_NULL, IS_NOT_NULL
-                            }
-                            else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
-                                if (value[operator] !== true) {
-                                    throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be true`));
-                                }
-                                clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
-                            }
-                            else {
-                                throw new Error(this.printPrefixMessage(`processConditions :: Unsupported operator: ${operator}`));
-                            }
+                switch (key) {
+                    case 'AND':
+                    case 'OR':
+                        if (!Array.isArray(value) || value.length === 0) {
+                            throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
                         }
-                    }
-                    else {
-                        // Determine if the value is an array for IN condition
-                        // e.g. { user_id: [1, 2, 3] } => user_id IN (1, 2, 3)
-                        if (Array.isArray(value)) {
-                            if (value.length === 0) {
-                                throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
+                        const nestedConditions = value;
+                        const nestedClauses = nestedConditions.map(nestedCondition => processConditions(nestedCondition, key));
+                        const nestedClauseStrings = nestedClauses.map(nestedResult => `(${nestedResult.clause})`);
+                        clauses.push(nestedClauseStrings.join(` ${key} `));
+                        nestedClauses.forEach(nestedResult => localParams.push(...nestedResult.params));
+                        break;
+                    case 'RAW':
+                        // Handle RAW SQL condition
+                        const isValidRaw = typeof value === 'object' && value !== null && 'sql' in value && typeof value.sql === 'string' && value.sql.length > 0;
+                        if (!isValidRaw) {
+                            throw new Error(this.printPrefixMessage('processConditions :: RAW :: raw (sql) must be a string'));
+                        }
+                        clauses.push(value.sql);
+                        if (value.params && Array.isArray(value.params)) {
+                            localParams.push(...value.params);
+                        }
+                        break;
+                    default:
+                        const sanitizedKey = key.replace(/[^a-zA-Z0-9_.]/g, '');
+                        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                            for (const operator in value) {
+                                // Handle IN
+                                if (operator === 'IN' && Array.isArray(value[operator])) {
+                                    if (value[operator].length === 0) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: IN :: condition must be a non-empty array`));
+                                    }
+                                    clauses.push(`${sanitizedKey} IN (${value[operator].map(() => '?').join(', ')})`);
+                                    localParams.push(...value[operator]);
+                                    // Handle NOT_IN
+                                }
+                                else if (operator === 'NOT_IN' && Array.isArray(value[operator])) {
+                                    if (value[operator].length === 0) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: NOT_IN :: condition must be a non-empty array`));
+                                    }
+                                    clauses.push(`${sanitizedKey} NOT IN (${value[operator].map(() => '?').join(', ')})`);
+                                    localParams.push(...value[operator]);
+                                    // Handle BETWEEN
+                                }
+                                else if (operator === 'BETWEEN' && Array.isArray(value[operator])) {
+                                    if (value[operator].length !== 2) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: BETWEEN :: condition must be an array with exactly 2 elements`));
+                                    }
+                                    clauses.push(`${sanitizedKey} BETWEEN ? AND ?`);
+                                    localParams.push(value[operator][0], value[operator][1]);
+                                    // Handle NOT_BETWEEN
+                                }
+                                else if (operator === 'NOT_BETWEEN' && Array.isArray(value[operator])) {
+                                    if (value[operator].length !== 2) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: NOT_BETWEEN :: condition must be an array with exactly 2 elements`));
+                                    }
+                                    clauses.push(`${sanitizedKey} NOT BETWEEN ? AND ?`);
+                                    localParams.push(value[operator][0], value[operator][1]);
+                                    // Handle =, !=, <, <=, >, >=
+                                }
+                                else if (['=', '!=', '<', '<=', '>', '>='].includes(operator)) {
+                                    clauses.push(`${sanitizedKey} ${operator} ?`);
+                                    localParams.push(value[operator]);
+                                    // Handle LIKE, NOT LIKE
+                                }
+                                else if (operator === 'LIKE' || operator === 'NOT_LIKE') {
+                                    const patternType = value[operator];
+                                    const clauseString = `${sanitizedKey} ${operator === 'NOT_LIKE' ? 'NOT LIKE' : 'LIKE'} ?`;
+                                    if (typeof patternType === 'string') {
+                                        // Direct string pattern
+                                        clauses.push(clauseString);
+                                        localParams.push(patternType);
+                                    }
+                                    else if (typeof patternType === 'object' && patternType !== null) {
+                                        // Validation step to ensure only one of contains, startsWith, or endsWith is present
+                                        const patternKeys = ['contains', 'startsWith', 'endsWith'];
+                                        const presentKeys = patternKeys.filter(key => key in patternType);
+                                        if (presentKeys.length > 1) {
+                                            throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Only one of 'contains', 'startsWith', or 'endsWith' can be provided`));
+                                        }
+                                        switch (true) {
+                                            case !!patternType.contains:
+                                                clauses.push(clauseString);
+                                                localParams.push(`%${patternType.contains}%`);
+                                                break;
+                                            case !!patternType.startsWith:
+                                                clauses.push(clauseString);
+                                                localParams.push(`${patternType.startsWith}%`);
+                                                break;
+                                            case !!patternType.endsWith:
+                                                clauses.push(clauseString);
+                                                localParams.push(`%${patternType.endsWith}`);
+                                                break;
+                                            default:
+                                                throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: Invalid pattern type`));
+                                        }
+                                    }
+                                    // Handle REGEXP
+                                }
+                                else if (operator === "REGEXP") {
+                                    if (typeof value[operator] !== 'string' || value[operator].length === 0) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be a non empty string`));
+                                    }
+                                    clauses.push(`${sanitizedKey} REGEXP ?`);
+                                    localParams.push(value[operator]);
+                                    // Handle IS_NULL, IS_NOT_NULL
+                                }
+                                else if (['IS_NULL', 'IS_NOT_NULL'].includes(operator)) {
+                                    if (value[operator] !== true) {
+                                        throw new Error(this.printPrefixMessage(`processConditions :: ${operator} :: condition must be true`));
+                                    }
+                                    clauses.push(`${sanitizedKey} ${operator.replace(/_/g, ' ')}`);
+                                }
+                                else {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: Unsupported operator: ${operator}`));
+                                }
                             }
-                            clauses.push(`${sanitizedKey} IN (${value.map(() => '?').join(', ')})`);
-                            localParams.push(...value);
                         }
                         else {
-                            // Normal equal condition
-                            // e.g. { user_id: 1 } => user_id = 1
-                            clauses.push(`${sanitizedKey} = ?`);
-                            localParams.push(value);
+                            // Determine if the value is an array for IN condition
+                            // e.g. { user_id: [1, 2, 3] } => user_id IN (1, 2, 3)
+                            if (Array.isArray(value)) {
+                                if (value.length === 0) {
+                                    throw new Error(this.printPrefixMessage(`processConditions :: ${key} :: condition must be a non-empty array`));
+                                }
+                                clauses.push(`${sanitizedKey} IN (${value.map(() => '?').join(', ')})`);
+                                localParams.push(...value);
+                            }
+                            else {
+                                // Normal equal condition
+                                // e.g. { user_id: 1 } => user_id = 1
+                                clauses.push(`${sanitizedKey} = ?`);
+                                localParams.push(value);
+                            }
                         }
-                    }
                 }
             }
             return { clause: clauses.join(` ${parentOperator} `), params: localParams };
@@ -483,41 +522,10 @@ class SQLBuilder {
     }
     set(values) {
         this.throwEmptyObjectError(values, this.printPrefixMessage('Set :: Values cannot be empty'));
-        // Both increment and decrement cannot be provided for the same field
-        Object.entries(values).forEach(([key, value]) => {
-            if (typeof value === 'object' && value !== null) {
-                if ('increment' in value && 'decrement' in value) {
-                    throw new Error(`Set :: Both increment and decrement provided for field ${key}`);
-                }
-            }
-        });
-        // const setClauses = Object.keys(values).map(key => `?? = ?`);
-        // const setParams = Object.entries(values).flatMap(([key, value]) => [key, value]);
-        const setClauses = Object.keys(values).map(key => {
-            const value = values[key];
-            if (typeof value === 'object' && value !== null) {
-                if ('increment' in value) {
-                    return `?? = ?? + ?`;
-                }
-                else if ('decrement' in value) {
-                    return `?? = ?? - ?`;
-                }
-            }
-            return `?? = ?`;
-        });
-        const setParams = Object.entries(values).flatMap(([key, value]) => {
-            if (typeof value === 'object' && value !== null) {
-                if ('increment' in value) {
-                    return [key, key, value.increment];
-                }
-                else if ('decrement' in value) {
-                    return [key, key, value.decrement];
-                }
-            }
-            return [key, value];
-        });
-        this.#queryParts.set.sql = `SET ${setClauses.join(', ')}`;
-        this.#queryParts.set.params = setParams;
+        this.validateIncrementDecrement(values, 'Set');
+        const { clauses, params } = this.buildUpdateClausesAndParams(values);
+        this.#queryParts.set.sql = `SET ${clauses.join(', ')}`;
+        this.#queryParts.set.params = params;
         return this;
     }
     insert(table, values, options) {
@@ -529,10 +537,10 @@ class SQLBuilder {
             throw new Error(this.printPrefixMessage('Insert :: Values cannot be empty'));
         }
         if (enableTimestamps) {
-            if (!(typeof ctimeValue === 'function')) {
+            if (typeof ctimeValue !== 'function') {
                 throw new Error(this.printPrefixMessage('ctimeValue must be a function'));
             }
-            if (!(typeof utimeValue === 'function')) {
+            if (typeof utimeValue !== 'function') {
                 throw new Error(this.printPrefixMessage('utimeValue must be a function'));
             }
             rows.forEach((row) => {
@@ -554,10 +562,10 @@ class SQLBuilder {
         const valuesPlaceholders = rows.map(() => `(${placeholders})`).join(', '); // e.g. '(?, ?, ?), (?, ?, ?)'
         let insertClause = `INSERT ${options?.insertIgnore ? 'IGNORE ' : ''}INTO ?? (${columnPlaceholders}) VALUES ${valuesPlaceholders}`;
         if (options?.onDuplicateKeyUpdate) {
-            const updateColumns = Object.keys(options.onDuplicateKeyUpdate).map(key => '?? = ?').join(', ');
-            const updateParams = Object.entries(options.onDuplicateKeyUpdate).flatMap(([key, value]) => [key, value]);
-            insertClause += ` ON DUPLICATE KEY UPDATE ${updateColumns}`;
-            valueParams.push(...updateParams);
+            this.validateIncrementDecrement(options.onDuplicateKeyUpdate, 'onDuplicateKeyUpdate');
+            const { clauses, params } = this.buildUpdateClausesAndParams(options.onDuplicateKeyUpdate);
+            insertClause += ` ON DUPLICATE KEY UPDATE ${clauses.join(', ')}`;
+            valueParams.push(...params);
         }
         this.#queryParts.insert.sql = insertClause;
         this.#queryParts.insert.params = [table, ...columnParams, ...valueParams];

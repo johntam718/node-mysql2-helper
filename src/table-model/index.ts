@@ -128,11 +128,6 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     return {} as OrderByField<ColumnKeys>;
   }
 
-  // Backward compatibility alias
-  createOrderbyObject(defaultValues?: OrderByField<ColumnKeys>) {
-    return this.createOrderByObject(defaultValues);
-  }
-
   createOrderByArray() {
     return [] as OrderByField<ColumnKeys>[];
   }

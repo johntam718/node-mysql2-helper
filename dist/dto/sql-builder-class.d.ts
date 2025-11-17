@@ -10,6 +10,15 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     private checkTableName;
     private throwEmptyObjectError;
     private printPrefixMessage;
+    /**
+     * Validates that increment and decrement are not both provided for the same field
+     */
+    private validateIncrementDecrement;
+    /**
+     * Builds SQL clauses and parameters for update operations, handling increment/decrement values
+     * @returns Object with clauses array and params array
+     */
+    private buildUpdateClausesAndParams;
     private uniqueFields;
     private buildWhereClause;
     count(field?: ColumnKeys | (string & {}), alias?: string): SelectQueryBuilder<ColumnKeys, QueryReturnType>;
@@ -30,7 +39,7 @@ export declare class SQLBuilder<ColumnKeys extends string, QueryReturnType = any
     update(table: string, values: UpdateValue<ColumnKeys>): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
     update(table: string, values: UpdateValue<ColumnKeys>, options?: UpdateOptions): UpdateQueryBuilderWithoutSet<ColumnKeys, QueryReturnType>;
     set(values: UpdateValue<ColumnKeys>): SetQueryBuilder<ColumnKeys, QueryReturnType>;
-    insert(table: string, values: InsertValue<ColumnKeys>, options?: InsertOptions): InsertQueryBuilder<QueryReturnType>;
+    insert(table: string, values: InsertValue<ColumnKeys>, options?: InsertOptions<ColumnKeys>): InsertQueryBuilder<QueryReturnType>;
     deleteFrom(table: string): DeleteQueryBuilder<ColumnKeys, QueryReturnType>;
     buildQuery(options?: BuildQueryOptions): {
         sql: string;

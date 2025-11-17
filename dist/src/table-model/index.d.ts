@@ -1,11 +1,12 @@
 import { SQLBuilder } from "../../dto/sql-builder-class";
-import { InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, FieldAlias, PatchOptions, TableModelConstructor, SelectFields, InsertValue, UpdateValue } from "../../dto/types";
+import { InsertOptions, LimitOffset, OrderByField, Prettify, QueryAction, UpdateOptions, WhereCondition, SoftDeleteOptions, PatchOptions, TableModelConstructor, SelectFields, InsertValue, UpdateValue } from "../../dto/types";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 export declare class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys> {
     tableName: string;
     tableAlias?: string;
     primaryKey: PrimaryKey;
     columns: ColumnKeys[];
+    private enablePrimaryKey;
     private centralFields;
     private queryFn?;
     constructor(config: TableModelConstructor<ColumnKeys[], PrimaryKey>);
@@ -14,44 +15,45 @@ export declare class TableModel<ColumnKeys extends string, PrimaryKey extends Co
     private throwEmptyObjectError;
     private throwEmptyArrayError;
     private printPrefixMessage;
+    private cloneData;
     private removeExtraFieldsAndLog;
     initSQLBuilder<T extends ColumnKeys, QueryReturnType = any>(): SQLBuilder<T, QueryReturnType>;
     createWhereCondition(): WhereCondition<ColumnKeys>;
-    createOrderbyObject(defaultValues: OrderByField<ColumnKeys>): OrderByField<ColumnKeys>;
+    createOrderByObject(defaultValues?: OrderByField<ColumnKeys>): OrderByField<ColumnKeys>;
     createOrderByArray(): OrderByField<ColumnKeys>[];
     createSelect(): (values?: {
         fields?: SelectFields<ColumnKeys>;
     }) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;
     createUpdate(options?: UpdateOptions): (values: {
-        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
+        data: UpdateValue<ColumnKeys>;
         where: WhereCondition<ColumnKeys>;
     }) => import("../../dto/types").WhereQueryBuilder<ColumnKeys, ResultSetHeader>;
-    createInsert(options?: InsertOptions): (data: InsertValue<ColumnKeys>) => import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
+    createInsert(options?: InsertOptions<ColumnKeys>): (data: InsertValue<ColumnKeys>) => import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
     createDelete(): (values: {
         where: WhereCondition<ColumnKeys>;
     }) => import("../../dto/types").WhereQueryBuilder<ColumnKeys, ResultSetHeader>;
     createCount(): (field?: ColumnKeys | (string & {}) | "*", alias?: string) => import("../../dto/types").FromQueryBuilder<ColumnKeys, RowDataPacket[]>;
     findOne(values: {
-        fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[];
+        fields?: SelectFields<ColumnKeys>;
         where: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];
     }): import("../../dto/types").LimitQueryBuilder<{ [key in (string & {}) | ColumnKeys]?: any; }[]>;
     findAll(values?: Prettify<{
-        fields?: ColumnKeys | string & {} | (ColumnKeys | FieldAlias<ColumnKeys>)[];
+        fields?: SelectFields<ColumnKeys>;
         where?: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];
-    } & LimitOffset>): import("../../dto/types").OffsetQueryBuilder<RowDataPacket[]>;
+    } & LimitOffset>): import("../../dto/types").OffsetQueryBuilder<{ [key in (string & {}) | ColumnKeys]?: any; }[]>;
     updateOne(values: Prettify<{
-        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
+        data: UpdateValue<ColumnKeys>;
         where: WhereCondition<ColumnKeys>;
         options?: UpdateOptions;
     }>): QueryAction<ResultSetHeader>;
     updateAll(values: Prettify<{
-        data: Omit<UpdateValue<ColumnKeys>, PrimaryKey>;
+        data: UpdateValue<ColumnKeys>;
         where?: WhereCondition<ColumnKeys>;
         options?: UpdateOptions;
     }>): QueryAction<ResultSetHeader>;
-    insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions): import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
+    insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions<ColumnKeys>): import("../../dto/types").InsertQueryBuilder<ResultSetHeader>;
     removeOne(values: {
         where: WhereCondition<ColumnKeys>;
         orderBy?: OrderByField<ColumnKeys>[];

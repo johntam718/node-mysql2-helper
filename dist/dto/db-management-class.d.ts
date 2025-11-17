@@ -17,7 +17,7 @@ export declare class DatabaseManagement {
     static getInstanceList(logInstanceNames?: boolean): Map<string, DatabaseManagement> | string[];
     static formatQuery(sql: string, params?: any[]): string;
     formatQuery(sql: string, params?: any[]): string;
-    createTableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: Omit<TableModelConstructor<ColumnKeys[], PrimaryKey>, 'queryFn'>): TableModel<ColumnKeys, PrimaryKey>;
+    createTableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: TableModelConstructor<ColumnKeys[], PrimaryKey>): TableModel<ColumnKeys, PrimaryKey>;
     createTransactionConnection(): Promise<{
         query: (sql: string, params?: any[]) => Promise<mysql.QueryResult>;
         commit: (options: {
