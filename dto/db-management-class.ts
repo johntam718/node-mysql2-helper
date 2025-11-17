@@ -100,7 +100,7 @@ export class DatabaseManagement {
     return DatabaseManagement.formatQuery(sql, params);
   }
 
-  createTableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: Omit<TableModelConstructor<ColumnKeys[], PrimaryKey>, 'queryFn'>) {
+  createTableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys>(BuildSQLConstructor: TableModelConstructor<ColumnKeys[], PrimaryKey>) {
     return new TableModel({ ...BuildSQLConstructor, queryFn: this.executeQuery.bind(this) });
   }
 

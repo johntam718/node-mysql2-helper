@@ -165,7 +165,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
     }
   }
 
-  createInsert(options?: InsertOptions) {
+  createInsert(options?: InsertOptions<ColumnKeys>) {
     return (data: InsertValue<ColumnKeys>) => {
       const SQLBuild = this.initSQLBuilder<ColumnKeys, ResultSetHeader>();
       const handleData = this.cloneData(data);
@@ -265,7 +265,7 @@ export class TableModel<ColumnKeys extends string, PrimaryKey extends ColumnKeys
       .where(where) as QueryAction<ResultSetHeader>;
   }
 
-  insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions) {
+  insertRecord(data: InsertValue<ColumnKeys>, options?: InsertOptions<ColumnKeys>) {
     const handleData = this.cloneData(data);
     if (Array.isArray(handleData)) {
       this.throwEmptyArrayError(handleData, this.printPrefixMessage('Create :: Data cannot be empty'));
